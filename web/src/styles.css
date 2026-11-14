@@ -1,0 +1,40 @@
+:root {
+  color-scheme: dark;
+  --bg: #050507;
+  --text: #c9c9d1;
+  --dim: #6b6b78;
+  --hue: 220;
+  --me: hsl(var(--hue) 90% 60%);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; height: 100%; background: var(--bg); color: var(--text); overscroll-behavior: none; }
+button { font: inherit; color: inherit; background: #15151b; border: 1px solid #2a2a33; border-radius: 10px; padding: 8px 12px; }
+button:active { background: #22222b; }
+
+.lang { position: fixed; top: max(10px, env(safe-area-inset-top)); right: 12px; display: flex; gap: 4px; z-index: 2; }
+.lang button { padding: 4px 9px; font-size: 13px; color: var(--dim); }
+.lang button.on { color: var(--text); border-color: #555; }
+
+.join { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px; text-align: center; }
+.join h1 { margin: 0; font-size: 44px; letter-spacing: 0.08em; font-weight: 600; }
+.logo { width: min(80vw, 360px); height: auto; display: block; }
+.tagline { margin: 0; color: var(--dim); }
+.big { font-size: 20px; padding: 16px 28px; border-color: #3a3a46; }
+.small { font-size: 12px; color: var(--dim); max-width: 320px; }
+
+.play { height: 100%; display: flex; flex-direction: column; padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)); gap: 8px; }
+.play header { padding-right: 96px; min-height: 44px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+.youare { color: var(--dim); }
+.name { color: var(--me); font-size: 20px; }
+.place { color: var(--dim); font-size: 13px; width: 100%; }
+.warn { color: #e0a040; font-size: 13px; margin: 0; }
+
+.pad { position: relative; flex: 1; border: 1px solid #1c1c24; border-radius: 16px; overflow: hidden; touch-action: none; user-select: none; }
+.dot { position: absolute; width: 64px; height: 64px; border-radius: 50%; background: var(--me); box-shadow: 0 0 40px var(--me); transition: transform 80ms linear; pointer-events: none; }
+.hint { position: absolute; bottom: 8px; left: 0; right: 0; text-align: center; font-size: 12px; color: var(--dim); margin: 0; pointer-events: none; }
+.mini { position: absolute; top: 10px; left: 10px; width: 96px; height: 54px; border: 1px solid #23232c; border-radius: 6px; pointer-events: none; }
+.mine { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: var(--me); transform: translate(-50%, -50%); }
+
+.emojis { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+.emojis button { font-size: 22px; padding: 8px 0; }

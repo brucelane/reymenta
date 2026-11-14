@@ -1,0 +1,33 @@
+{
+  "name": "reymenta",
+  "version": "6.11.14.1",
+  "private": true,
+  "description": "Reymenta: the audience plays along with the AV set from their phones (live.videodromm.com)",
+  "license": "AGPL-3.0-or-later",
+  "author": "Bruce Lane",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "server": "tsx src/server/main.ts",
+    "bots": "tsx scripts/fake-phones.ts",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/ws": "^8.18.1",
+    "@vitejs/plugin-basic-ssl": "^1.2.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.21"
+  }
+}
