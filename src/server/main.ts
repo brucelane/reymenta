@@ -8,6 +8,8 @@
 // read from ../TSWebsocketServer/.env when not set), MODE (circles).
 
 import { readFileSync } from 'node:fs';
+import { hostname } from 'node:os';
+import { Bonjour } from 'bonjour-service';
 import { createServer } from 'node:http';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -45,6 +47,12 @@ function deliver(out: Outgoing[]) {
 }
 
 const http = createServer((req, res) => {
+  // what the Android app's discovery probes (web/src/discovery.ts): says only that this is the audience server
+  if (req.url === '/ping') {
+    res.writeHead(200, { 'content-type': 'application/json', 'access-control-allow-origin': '*' });
+    res.end(JSON.stringify({ app: 'reymenta-audience' }));
+    return;
+  }
   if (req.url === '/status') {
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({
@@ -110,4 +118,17 @@ setInterval(() => {
   }
 }, 50);
 
-http.listen(PORT, HOST, () => log(`audience server on http://${HOST}:${PORT} (phones: /ws, status: /status), mode ${room.mode}`));
+http.listen(PORT, HOST, () => {
+  log(`audience server on http://${HOST}:${PORT} (phones: /ws, status: /status), mode ${room.mode}`);
+  // mDNS: the Android app finds this server without its address being typed (MDNS=0 turns it off).
+  // Windows: Node must be allowed through the firewall on private networks (UDP 5353).
+  if (process.env.MDNS !== '0') {
+    try {
+      const service = new Bonjour().publish({ name: `reymenta-${hostname()}`, type: 'reymenta', port: PORT, txt: { app: 'reymenta-audience' } });
+      service.on('error', (err: unknown) => log(`mDNS error: ${err}`));
+      log(`mDNS: announced _reymenta._tcp on port ${PORT}`);
+    } catch (err) {
+      log(`mDNS not started: ${err}`);
+    }
+  }
+});

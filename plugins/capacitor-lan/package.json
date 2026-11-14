@@ -1,0 +1,21 @@
+{
+  "name": "capacitor-lan",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Android only: the phone's Wi-Fi IPv4 address and mDNS (NsdManager) discovery (copied from WebApp/plugins/capacitor-lan): reymenta finds its audience server (_reymenta._tcp), web/src/discovery.ts",
+  "main": "index.js",
+  "license": "AGPL-3.0",
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  },
+  "peerDependencies": {
+    "@capacitor/core": ">=8.0.0"
+  },
+  "files": [
+    "index.js",
+    "android/src/main/",
+    "android/build.gradle"
+  ]
+}

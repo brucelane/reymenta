@@ -61,8 +61,11 @@ Environment: `PORT` (5191), `HOST` (0.0.0.0), `TSWS_URL` (ws://127.0.0.1:40088),
 
 `pnpm buildandroid`: type-check, build, `npx cap sync android`, then opens Android Studio (Run on a phone over
 USB). Capacitor 8, app id `com.videodromm.reymenta`, `http://localhost` scheme + cleartext (LAN). In the app the
-page runs from localhost, so the join screen asks once for the audience server's address (e.g.
-`192.168.1.54:5191`, the show PC); the web page doesn't need it. Icons and splash: `scripts/make-icons.ps1`
+page runs from localhost, so the app finds the audience server by itself (`web/src/discovery.ts`: the
+address found last time, mDNS `_reymenta._tcp` announced by `pnpm server`, then a scan of the phone's /24 on
+port 5191, each answer checked with `GET /ping`), with the plugin `plugins/capacitor-lan` copied from the
+WebApp. The join screen shows the address found and lets you type another. The web page doesn't need it.
+Windows: allow Node through the firewall on private networks (mDNS is UDP 5353, the server TCP 5191). Icons and splash: `scripts/make-icons.ps1`
 redraws `android/app/src/main/res` from the logo (or `pnpm androidassets`, @capacitor/assets). `android/` is
 in git but not synced by Syncthing (the shared `android` ignore pattern), like the WebApp's: build it on the
 Acer. Without Android Studio: in `android/`, `gradlew.bat assembleDebug` with `JAVA_HOME` set to Android

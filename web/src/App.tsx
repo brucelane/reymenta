@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { EMOJIS, type ServerMessage } from '../../src/room/protocol';
 import { connect, isNativeApp, phoneId, savedServer, saveServer, type Connection, type Status } from './connection';
+import { discoverServer } from './discovery';
 import { initialLang, saveLang, texts, type Lang } from './i18n';
 import { requestMotionPermission, startMotion, type Motion } from './sensors';
 
@@ -20,6 +21,18 @@ export function App() {
   const t = texts(lang);
 
   const switchLang = (l: Lang) => { setLang(l); saveLang(l); };
+
+  // the app finds the audience server by itself (last address, mDNS, Wi-Fi scan) unless one was typed
+  const [server, setServer] = useState(savedServer);
+  const [search, setSearch] = useState<'' | 'searching' | 'found' | 'notfound'>('');
+  useEffect(() => {
+    if (!isNativeApp || savedServer()) return;
+    setSearch('searching');
+    discoverServer().then((found) => {
+      if (found && !savedServer()) { saveServer(found); setServer(found); setSearch('found'); }
+      else setSearch(found ? 'found' : 'notfound');
+    });
+  }, []);
 
   const join = async () => {
     setJoined(true);
@@ -88,8 +101,9 @@ export function App() {
         {isNativeApp && (
           <label className="server">
             {t.server}
-            <input defaultValue={savedServer()} placeholder="192.168.1.54:5191" inputMode="url"
-              onChange={(e) => saveServer(e.target.value)} />
+            <input value={server} placeholder="192.168.1.54:5191" inputMode="url"
+              onChange={(e) => { setServer(e.target.value); saveServer(e.target.value); }} />
+            {search && <span className="search">{t.search[search]}</span>}
           </label>
         )}
         <button className="big" onClick={join}>{t.join}</button>
