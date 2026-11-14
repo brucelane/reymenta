@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { EMOJIS, type ServerMessage } from '../../src/room/protocol';
-import { connect, phoneId, type Connection, type Status } from './connection';
+import { connect, isNativeApp, phoneId, savedServer, saveServer, type Connection, type Status } from './connection';
 import { initialLang, saveLang, texts, type Lang } from './i18n';
 import { requestMotionPermission, startMotion, type Motion } from './sensors';
 
@@ -85,6 +85,13 @@ export function App() {
         {langSwitch}
         <h1><img className="logo" src="./logo.png" alt="Reymenta" /></h1>
         <p className="tagline">{t.tagline}</p>
+        {isNativeApp && (
+          <label className="server">
+            {t.server}
+            <input defaultValue={savedServer()} placeholder="192.168.1.54:5191" inputMode="url"
+              onChange={(e) => saveServer(e.target.value)} />
+          </label>
+        )}
         <button className="big" onClick={join}>{t.join}</button>
         <p className="small">{t.privacy}</p>
       </main>

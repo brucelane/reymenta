@@ -1,5 +1,7 @@
-// The phone's link to the audience server: same-origin wss://<page host>/ws (the Vite dev server proxies it
-// on the LAN; Azure Web PubSub later). Reconnects with a growing delay, says hello again each time.
+// The phone's link to the audience server. In the browser: same-origin <page host>/ws (the Vite dev server
+// proxies it on the LAN; Azure Web PubSub later). In the Android app the page runs from http://localhost, so
+// the server's address is typed once on the join screen (kept on the phone), e.g. 192.168.1.54:5191.
+// Reconnects with a growing delay, says hello again each time.
 
 import type { PhoneMessage, ServerMessage } from '../../src/room/protocol';
 
@@ -9,6 +11,9 @@ export interface Connection {
   send(msg: PhoneMessage): void;
   close(): void;
 }
+
+/** True inside the Capacitor app. */
+export const isNativeApp = !!(globalThis as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
 
 export function phoneId(): string {
   try {
@@ -23,6 +28,22 @@ export function phoneId(): string {
   }
 }
 
+/** The audience server typed in the app ("192.168.1.54" or "192.168.1.54:5191"), "" when none. */
+export function savedServer(): string {
+  try { return localStorage.getItem('reymenta:server') ?? ''; } catch { return ''; }
+}
+
+export function saveServer(server: string) {
+  try { localStorage.setItem('reymenta:server', server.trim()); } catch { /* storage blocked */ }
+}
+
+/** The websocket address: the typed server in the app, else the page's own host. */
+export function serverUrl(): string {
+  const typed = savedServer().replace(/^(wss?|https?):\/\//, '').replace(/\/.*$/, '');
+  if (isNativeApp && typed) return `ws://${typed.includes(':') ? typed : `${typed}:5191`}/ws`;
+  return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
+}
+
 export function connect(
   hello: () => PhoneMessage,
   onMessage: (msg: ServerMessage) => void,
@@ -33,7 +54,7 @@ export function connect(
   let delay = 1000;
   let heartbeat: number | undefined;
   let lastSent = 0;
-  const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
+  const url = serverUrl();
 
   const open = () => {
     if (closed) return;

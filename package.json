@@ -1,6 +1,6 @@
 {
   "name": "reymenta",
-  "version": "6.11.14.3",
+  "version": "6.11.14.4",
   "private": true,
   "description": "Reymenta: the audience plays along with the AV set from their phones (live.videodromm.com)",
   "license": "AGPL-3.0-or-later",
@@ -12,15 +12,20 @@
     "server": "tsx src/server/main.ts",
     "bots": "tsx scripts/fake-phones.ts",
     "build": "tsc --noEmit && vite build",
+    "buildandroid": "tsc --noEmit && vite build && npx cap sync android && npx cap open android",
+    "androidassets": "npx @capacitor/assets generate --android --assetPath resources",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "ws": "^8.18.3"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.6.2",
     "@types/node": "^24.10.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

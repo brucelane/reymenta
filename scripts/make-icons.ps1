@@ -50,4 +50,35 @@ Save-Square 1024 0 "$res\icon-background.png"
 Save-Square 2732 0.4 "$res\splash.png"
 Save-Square 2732 0.4 "$res\splash-dark.png"
 
+# Android (once `npx cap add android` made android/): every launcher icon and splash png of the template is
+# redrawn at its own size, so no extra tool is needed (@capacitor/assets does the same from resources/).
+function Save-Fit([int]$W, [int]$H, [double]$LogoFraction, [string]$Path, [bool]$Background) {
+  $bmp = New-Object System.Drawing.Bitmap $W, $H, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+  $g = [System.Drawing.Graphics]::FromImage($bmp)
+  $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+  $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+  if ($Background) { $g.Clear([System.Drawing.Color]::Black) } else { $g.Clear([System.Drawing.Color]::Transparent) }
+  $box = [Math]::Min($W, $H) * $LogoFraction
+  $scale = [Math]::Min($box / $logo.Width, $box / $logo.Height)
+  $lw = $logo.Width * $scale; $lh = $logo.Height * $scale
+  $g.DrawImage($logo, [single](($W - $lw) / 2), [single](($H - $lh) / 2), [single]$lw, [single]$lh)
+  $g.Dispose()
+  $bmp.Save($Path, [System.Drawing.Imaging.ImageFormat]::Png)
+  $bmp.Dispose()
+}
+$androidRes = "$root\android\app\src\main\res"
+if (Test-Path $androidRes) {
+  foreach ($file in Get-ChildItem $androidRes -Recurse -Filter *.png) {
+    $img = [System.Drawing.Image]::FromFile($file.FullName); $w = $img.Width; $h = $img.Height; $img.Dispose()
+    if ($file.Name -eq 'ic_launcher_foreground.png') { Save-Fit $w $h 0.62 $file.FullName $false }   # adaptive icon, 66% safe zone
+    elseif ($file.Name -like 'ic_launcher*.png') { Save-Fit $w $h 0.9 $file.FullName $true }
+    elseif ($file.Name -eq 'splash.png') { Save-Fit $w $h 0.4 $file.FullName $true }
+  }
+  $bgXml = "$androidRes\values\ic_launcher_background.xml"
+  if (Test-Path $bgXml) {
+    (Get-Content $bgXml -Raw) -replace '#[0-9A-Fa-f]{6,8}', '#000000' | Set-Content -NoNewline -Encoding utf8 $bgXml
+  }
+  "android icons and splash redrawn in $androidRes"
+}
+
 $logo.Dispose()

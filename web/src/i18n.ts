@@ -7,6 +7,7 @@ const TEXTS = {
   fr: {
     tagline: 'Jouez avec le set depuis votre téléphone',
     join: 'Rejoindre le show',
+    server: 'Serveur (adresse du PC du show)',
     joining: 'Connexion…',
     youAre: 'Vous êtes',
     place: (slot: number, count: number) => `cercle ${slot + 1} sur ${count}`,
@@ -19,6 +20,7 @@ const TEXTS = {
   en: {
     tagline: 'Play along with the set from your phone',
     join: 'Join the show',
+    server: 'Server (the show PC\'s address)',
     joining: 'Connecting…',
     youAre: 'You are',
     place: (slot: number, count: number) => `circle ${slot + 1} of ${count}`,

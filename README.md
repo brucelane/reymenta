@@ -57,6 +57,16 @@ Environment: `PORT` (5191), `HOST` (0.0.0.0), `TSWS_URL` (ws://127.0.0.1:40088),
 - `powershell -File scripts/make-icons.ps1`: favicons, PWA icons and the Capacitor Android icon/splash
   sources (`resources/`) from `web/public/logo.png`.
 
+## Android app
+
+`pnpm buildandroid`: type-check, build, `npx cap sync android`, then opens Android Studio (Run on a phone over
+USB). Capacitor 8, app id `com.videodromm.reymenta`, `http://localhost` scheme + cleartext (LAN). In the app the
+page runs from localhost, so the join screen asks once for the audience server's address (e.g.
+`192.168.1.54:5191`, the show PC); the web page doesn't need it. Icons and splash: `scripts/make-icons.ps1`
+redraws `android/app/src/main/res` from the logo (or `pnpm androidassets`, @capacitor/assets). `android/` is
+in git but not synced by Syncthing (the shared `android` ignore pattern), like the WebApp's: build it on the
+Acer. Without Android Studio: in `android/`, `gradlew.bat assembleDebug` with `JAVA_HOME` set to Android
+Studio's `jbr`, then `adb install -r app/build/outputs/apk/debug/app-debug.apk`.
 ## Licence
 
 AGPL-3.0-or-later (see LICENSE). Hydra and Strudel, planned for later, are AGPL too.
