@@ -4,6 +4,7 @@ The audience side of the Reymenta AV set (23 January 2027): a phone page and an 
 room's tilt/shake/touch/emoji into Cinder uniforms `iAud0..iAud31` (200..231). Overview, decisions and the plan:
 `../studies/reymenta-audience.md`. How to run: `README.md`.
 
+- Git `main`, GitHub `brucelane/reymenta` (public; the 2014 repo of that name, its old history deleted on 2026-11-14).
 - TypeScript, pnpm, Vite + React (plain CSS), `ws`. AGPL-3.0-or-later. Version `Y.M.D.N` (6.11.14.1), bumped
   on every change (the user's rule for every repo).
 - `src/room/`: pure room logic shared by the server and, later, the browser `/screen` demo: `protocol.ts`
