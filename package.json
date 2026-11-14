@@ -1,6 +1,6 @@
 {
   "name": "reymenta",
-  "version": "6.11.14.2",
+  "version": "6.11.14.3",
   "private": true,
   "description": "Reymenta: the audience plays along with the AV set from their phones (live.videodromm.com)",
   "license": "AGPL-3.0-or-later",
@@ -8,6 +8,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:phone": "vite --mode phone",
     "server": "tsx src/server/main.ts",
     "bots": "tsx scripts/fake-phones.ts",
     "build": "tsc --noEmit && vite build",

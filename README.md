@@ -36,7 +36,8 @@ through Azure Web PubSub instead of the LAN; the room logic (`src/room`) stays t
 ```
 pnpm install
 pnpm server        # audience server; finds TSWebsocketServer's ACCESS_TOKEN in ../TSWebsocketServer/.env
-pnpm dev           # the phone page, https on the LAN: https://<this PC's address>:5192
+pnpm dev           # the phone page on this PC: http://localhost:5192
+pnpm dev:phone     # the same over https on the LAN, for phones: https://<this PC's address>:5192
 pnpm bots 30       # 30 simulated phones, to rehearse alone
 ```
 
