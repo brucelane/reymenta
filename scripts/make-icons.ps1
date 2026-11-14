@@ -50,6 +50,28 @@ Save-Square 1024 0 "$res\icon-background.png"
 Save-Square 2732 0.4 "$res\splash.png"
 Save-Square 2732 0.4 "$res\splash-dark.png"
 
+# Google Play: store/google-play/icon-512.png (Play applies its own mask) and the feature graphic 1024x500
+# (no alpha: drawn on black, saved as 24-bit). Screenshots: node scripts/store-shots.mjs.
+$store = "$root\store\google-play"
+Save-Square 512 0.9 "$store\icon-512.png"
+$fg = New-Object System.Drawing.Bitmap 1024, 500, ([System.Drawing.Imaging.PixelFormat]::Format24bppRgb)
+$g = [System.Drawing.Graphics]::FromImage($fg)
+$g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+$g.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAlias
+$g.Clear([System.Drawing.Color]::Black)
+$lh = 360; $lw = $logo.Width * $lh / $logo.Height
+$g.DrawImage($logo, [single]40, [single]((500 - $lh) / 2), [single]$lw, [single]$lh)
+$font = New-Object System.Drawing.Font 'Segoe UI', 30, ([System.Drawing.FontStyle]::Bold)
+$small = New-Object System.Drawing.Font 'Segoe UI', 21
+$white = [System.Drawing.Brushes]::White; $grey = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(170, 170, 185))
+$x = [single](40 + $lw + 30)
+$g.DrawString('Jouez avec le show', $font, $white, $x, [single]170)
+$g.DrawString('Play along with the show', $small, $grey, $x, [single]220)
+$dot = [string][char]0xB7; $g.DrawString("inclinez $dot secouez $dot touchez", $small, $grey, $x, [single]275)
+$g.Dispose()
+$fg.Save("$store\feature-graphic-1024x500.png", [System.Drawing.Imaging.ImageFormat]::Png); $fg.Dispose()
+"wrote $store\feature-graphic-1024x500.png"
+
 # Android (once `npx cap add android` made android/): every launcher icon and splash png of the template is
 # redrawn at its own size, so no extra tool is needed (@capacitor/assets does the same from resources/).
 function Save-Fit([int]$W, [int]$H, [double]$LogoFraction, [string]$Path, [bool]$Background) {

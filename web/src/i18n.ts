@@ -17,6 +17,7 @@ const TEXTS = {
     sensorsOff: 'Capteurs de mouvement non disponibles : touchez l\'écran pour jouer.',
     hint: 'Inclinez, secouez, touchez l\'écran : votre cercle bouge sur l\'écran géant.',
     privacy: 'Seuls des nombres quittent votre téléphone (inclinaison, toucher). Rien n\'est gardé après la soirée.',
+    privacyLink: 'Confidentialité',
   },
   en: {
     tagline: 'Play along with the set from your phone',
@@ -31,6 +32,7 @@ const TEXTS = {
     sensorsOff: 'Motion sensors unavailable: touch the screen to play.',
     hint: 'Tilt, shake, touch the screen: your circle moves on the big screen.',
     privacy: 'Only numbers leave your phone (tilt, touch). Nothing is kept after the evening.',
+    privacyLink: 'Privacy',
   },
 };
 

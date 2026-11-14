@@ -1,14 +1,37 @@
 apply plugin: 'com.android.application'
 
+// Version from ../../package.json ("6.11.15.4" = year digit.month.day.build, the rule for every repo):
+// versionName as is, versionCode 6111504 (always grows, as Google Play requires).
+def pkg = new groovy.json.JsonSlurper().parse(rootProject.file('../package.json'))
+def vparts = pkg.version.tokenize('.').collect { it as int }
+def vcode = vparts[0] * 1000000 + vparts[1] * 10000 + vparts[2] * 100 + vparts[3]
+
+// Release signing (Google Play upload key): android/keystore.properties, git-ignored, never synced:
+//   storeFile=keystore/reymenta-upload.jks  storePassword=...  keyAlias=upload  keyPassword=...
+// Made by scripts/make-upload-key.ps1. Without it, release builds are unsigned.
+def keystoreFile = rootProject.file('keystore.properties')
+def keystore = new Properties()
+if (keystoreFile.exists()) keystoreFile.withInputStream { keystore.load(it) }
+
 android {
+    signingConfigs {
+        if (keystoreFile.exists()) {
+            upload {
+                storeFile rootProject.file(keystore['storeFile'])
+                storePassword keystore['storePassword']
+                keyAlias keystore['keyAlias']
+                keyPassword keystore['keyPassword']
+            }
+        }
+    }
     namespace = "com.videodromm.reymenta"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
         applicationId "com.videodromm.reymenta"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode vcode
+        versionName pkg.version
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -18,6 +41,7 @@ android {
     }
     buildTypes {
         release {
+            if (keystoreFile.exists()) signingConfig signingConfigs.upload
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

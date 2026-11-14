@@ -5,7 +5,11 @@ export interface Motion { tx: number; ty: number; sh: number }
 
 type PermissionFn = () => Promise<'granted' | 'denied'>;
 
+/** ?demo in the address: simulated tilt and shake (screenshots, trying it on a computer). */
+export const demoMotion = new URLSearchParams(location.search).has('demo');
+
 export async function requestMotionPermission(): Promise<boolean> {
+  if (demoMotion) return true;
   const dm = (globalThis as { DeviceMotionEvent?: { requestPermission?: PermissionFn } }).DeviceMotionEvent;
   const dor = (globalThis as { DeviceOrientationEvent?: { requestPermission?: PermissionFn } }).DeviceOrientationEvent;
   try {
@@ -21,6 +25,16 @@ const clamp = (v: number, lo = -1, hi = 1) => Math.min(hi, Math.max(lo, v));
 
 /** Listens to the sensors; `motion` is updated in place. Returns a stop function. */
 export function startMotion(motion: Motion): () => void {
+  if (demoMotion) {
+    const t0 = Date.now();
+    const timer = setInterval(() => {
+      const t = (Date.now() - t0) / 1000;
+      motion.tx = Math.sin(t * 0.7) * 0.6;
+      motion.ty = Math.cos(t * 0.5) * 0.4;
+      motion.sh = Math.max(0, Math.sin(t * 1.3)) ** 6;
+    }, 50);
+    return () => clearInterval(timer);
+  }
   const onOrientation = (e: DeviceOrientationEvent) => {
     if (e.gamma == null || e.beta == null) return;
     motion.tx = clamp(e.gamma / 45);        // left/right, ±45° = full

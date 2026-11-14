@@ -108,6 +108,10 @@ export function App() {
         )}
         <button className="big" onClick={join}>{t.join}</button>
         <p className="small">{t.privacy}</p>
+        <p className="small">
+          <a href="https://assets.batchass.fr/reymenta/privacy.html" target="_blank" rel="noreferrer">{t.privacyLink}</a>
+          {' · '}v{__APP_VERSION__}
+        </p>
       </main>
     );
   }
