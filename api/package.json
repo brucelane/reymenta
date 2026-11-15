@@ -1,0 +1,7 @@
+{
+  "name": "reymenta-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The Static Web App's managed functions: /api/join (a phone's Azure Web PubSub address). No dependencies.",
+  "license": "AGPL-3.0-or-later"
+}

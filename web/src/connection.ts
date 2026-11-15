@@ -44,45 +44,100 @@ export function serverUrl(): string {
   return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
 }
 
+// ---- cloud (Azure Web PubSub through the SWA's /api/join) ----
+
+const params = new URLSearchParams(location.search);
+/** The room: ?room= in the address (the QR code projected at the venue), else "demo". */
+export const roomName = (params.get('room') ?? 'demo').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 24) || 'demo';
+const LAN_HOST = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1\]?$)|\.local$/;
+
+/** Where /api/join lives: the page's own site, in the app the public site (?join= or reymenta:join overrides it). */
+function joinBase(): string {
+  let saved = '';
+  try { saved = localStorage.getItem('reymenta:join') ?? ''; } catch { /* storage blocked */ }
+  const forced = params.get('join') ?? saved;
+  if (forced) return forced.replace(/\/$/, '');
+  return isNativeApp ? 'https://live.videodromm.com' : '';
+}
+
+/** The cloud is used by a page served from the internet, by ?cloud, or in the app when no local server is set. */
+export function useCloud(): boolean {
+  if (params.has('cloud')) return true;
+  if (params.has('lan')) return false;
+  if (isNativeApp) return !savedServer();
+  return !LAN_HOST.test(location.hostname);
+}
+
+// ---- one connection, either way ----
+
 export function connect(
   hello: () => PhoneMessage,
   onMessage: (msg: ServerMessage) => void,
   onStatus: (s: Status) => void,
+  phone = phoneId(),
 ): Connection {
   let ws: WebSocket | undefined;
   let closed = false;
   let delay = 1000;
   let heartbeat: number | undefined;
   let lastSent = 0;
-  const url = serverUrl();
+  const cloud = useCloud();
+  const groupIn = `in-${roomName}`;
+  const groupOut = `out-${roomName}`;
 
-  const open = () => {
+  // the cloud wraps each message: {type:"sendToGroup", group, dataType:"json", data}
+  const raw = (msg: PhoneMessage) => cloud
+    ? JSON.stringify({ type: 'sendToGroup', group: groupIn, dataType: 'json', data: msg, noEcho: true })
+    : JSON.stringify(msg);
+
+  const address = async (): Promise<string> => {
+    if (!cloud) return serverUrl();
+    const res = await fetch(`${joinBase()}/api/join?id=${encodeURIComponent(phone)}&room=${roomName}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`join ${res.status}`);
+    return (await res.json()).url as string;
+  };
+
+  const retry = () => {
+    if (closed) return;
+    setTimeout(open, delay);
+    delay = Math.min(delay * 2, 10000);
+  };
+
+  const open = async () => {
     if (closed) return;
     onStatus('connecting');
-    ws = new WebSocket(url);
+    let url: string;
+    try { url = await address(); } catch { onStatus('closed'); retry(); return; }
+    ws = cloud ? new WebSocket(url, 'json.webpubsub.azure.v1') : new WebSocket(url);
     ws.onopen = () => {
       delay = 1000;
       onStatus('open');
-      ws!.send(JSON.stringify(hello()));
+      if (cloud) ws!.send(JSON.stringify({ type: 'joinGroup', group: groupOut }));
+      ws!.send(raw(hello()));
       lastSent = Date.now();
       heartbeat = window.setInterval(() => {
         if (Date.now() - lastSent > 4500) send({ t: 'hb' });
       }, 1000);
     };
     ws.onmessage = (e) => {
-      try { onMessage(JSON.parse(e.data as string) as ServerMessage); } catch { /* ignore */ }
+      try {
+        const m = JSON.parse(e.data as string);
+        if (!cloud) onMessage(m as ServerMessage);
+        // from the server (REST sendToUser) or the room's group; system and ack messages ignored
+        else if (m.type === 'message' && m.data) onMessage((typeof m.data === 'string' ? JSON.parse(m.data) : m.data) as ServerMessage);
+      } catch { /* ignore */ }
     };
     ws.onclose = () => {
       window.clearInterval(heartbeat);
       onStatus('closed');
-      if (!closed) { setTimeout(open, delay); delay = Math.min(delay * 2, 10000); }
+      retry(); // a new token each time (they expire after 3 hours)
     };
   };
 
   const send = (msg: PhoneMessage) => {
-    if (ws?.readyState === WebSocket.OPEN) { ws.send(JSON.stringify(msg)); lastSent = Date.now(); }
+    if (ws?.readyState === WebSocket.OPEN) { ws.send(raw(msg)); lastSent = Date.now(); }
   };
 
-  open();
+  void open();
   return { send, close() { closed = true; ws?.close(); } };
 }

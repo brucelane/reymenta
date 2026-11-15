@@ -57,6 +57,33 @@ Environment: `PORT` (5191), `HOST` (0.0.0.0), `TSWS_URL` (ws://127.0.0.1:40088),
 - `powershell -File scripts/make-icons.ps1`: favicons, PWA icons and the Capacitor Android icon/splash
   sources (`resources/`) from `web/public/logo.png`.
 
+## Cloud: phones on 4G (Azure Web PubSub + Static Web App)
+
+Phones that aren't on the show's network go through Azure Web PubSub (the existing `sophiaantipolis` resource, hub
+`reymenta`, groups `in-<room>` / `out-<room>`). The phone page asks `/api/join` (the SWA's function, `api/join`) for
+its address: user id = its phone id, allowed to send to `in-<room>` and listen to `out-<room>` only, 3 hours. The
+audience server joins `in-<room>` and answers each phone through the REST API. LAN and cloud phones share one room.
+
+- Which way: the page served from the internet (live.videodromm.com) uses the cloud, a LAN address uses the local
+  server; the app uses the local server it found or was given, else the cloud. `?cloud` / `?lan` force it,
+  `?room=<name>` picks the room (default `demo`), `?join=<base url>` points at another /api/join.
+- The server: `PUBSUB_CONNECTION_STRING` and `ROOM` in `reymenta/.env` (see `.env.example`). `GET /status` shows
+  `cloud: true` and the number of cloud phones.
+- Check without the SWA: `pnpm server`, then `pnpm tsx scripts/cloud-check.ts` (a phone through the cloud, waits for
+  its welcome).
+- Tokens are JWTs signed with the access key (`src/cloud/wps.ts`, and the same few lines in `api/join/index.js`):
+  no Azure SDK.
+
+**Creating the Static Web App (once, Azure portal):**
+1. *Create a resource* > *Static Web App*: plan **Free**, name `reymenta`, region West Europe, source **GitHub**,
+   repository `brucelane/reymenta`, branch `main`, build preset **Custom**: app location `/`, API location `api`,
+   output location `dist`. The portal commits a GitHub Actions workflow that builds and deploys on every push.
+2. The SWA > *Environment variables* (*Configuration*): `PUBSUB_CONNECTION_STRING` = the same connection string.
+3. The SWA > *Custom domains* > add `live.videodromm.com`: at IONOS (*Domaines & SSL* > `videodromm.com` > DNS),
+   a CNAME `live` -> the SWA's address (`<name>.azurestaticapps.net`), then *Validate* in the portal. Azure gives
+   the certificate itself.
+4. Check: `https://live.videodromm.com/api/join?id=test-12345678&room=demo` answers `{"url": "wss://..."}`.
+
 ## Android app
 
 `pnpm buildandroid`: type-check, build, `npx cap sync android`, then opens Android Studio (Run on a phone over
