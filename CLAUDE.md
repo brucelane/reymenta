@@ -29,6 +29,8 @@ room's tilt/shake/touch/emoji into Cinder uniforms `iAud0..iAud31` (200..231). O
 
 - 2026-11-15: Android app (Capacitor 8, server discovery via capacitor-lan + mDNS `_reymenta._tcp`), Google Play prep (signed AAB, upload key in `%USERPROFILE%\.android-keys`, store graphics and phone/tablet screenshots, listing texts, privacy policy at assets.batchass.fr/reymenta/privacy.html), `pnpm bump`. **The app was set up on Google Play by the user (2026-11-15).** Next on Play: the closed test (12 testers opted in for 14 days in a row) before production can be requested.
 
+- 2026-11-15: cloud path (Azure Web PubSub `sophiaantipolis`, hub `reymenta`, room `reymenta` in `.env`) checked end to end: `scripts/cloud-check.ts` joined through Azure and got its welcome from the audience server. Not yet: the SWA (`/api/join` online, live.videodromm.com).
+
 ## Next
 
 - Try on real phones (several Android, one iPhone; no Apple developer account needed for the web page) and in
