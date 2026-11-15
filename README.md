@@ -14,7 +14,7 @@ phones (https page, pnpm dev) --wss /ws--> audience server (pnpm server, :5191)
                                               v
                               TSWebsocketServer (:40088, as a client like the WebApp)
                                               v
-                              Cinder: uniforms iAud0..iAud31 (indexes 200..231)
+                              Cinder: uniforms iAud0..iAud31 (indexes 260..291)
 ```
 
 Phones never talk to TSWebsocketServer, so nothing they send can become a Cinder command. Later the phones go

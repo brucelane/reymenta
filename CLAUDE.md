@@ -1,7 +1,7 @@
 # reymenta
 
 The audience side of the Reymenta AV set (23 January 2027): a phone page and an audience server that turns the
-room's tilt/shake/touch/emoji into Cinder uniforms `iAud0..iAud31` (200..231). Overview, decisions and the plan:
+room's tilt/shake/touch/emoji into Cinder uniforms `iAud0..iAud31` (260..291). Overview, decisions and the plan:
 `../studies/reymenta-audience.md`. How to run: `README.md`.
 
 - Git `main`, GitHub `brucelane/reymenta` (public; the 2014 repo of that name, its old history deleted on 2026-11-14).

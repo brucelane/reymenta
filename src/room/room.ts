@@ -1,5 +1,5 @@
 // The room: who's there, where they sit, what they do, and the room-level values sent to Cinder as the
-// iAud0..iAud31 uniforms (indexes 200..231). Pure logic, no I/O: the server (today) and the browser
+// iAud0..iAud31 uniforms (indexes 260..291). Pure logic, no I/O: the server (today) and the browser
 // /screen (the demo, later) both host it. Times are milliseconds from the caller (Date.now() or a test clock).
 
 import { layout, type Place } from './layout';
@@ -7,7 +7,7 @@ import { nameFor } from './names';
 import { EMOJIS, MAX_PLACES, type PhoneMessage, type ServerMessage } from './protocol';
 
 /** Cinder uniform index of iAud0. */
-export const IAUD0 = 200;
+export const IAUD0 = 260;
 export const IAUD_COUNT = 32;
 
 /** What each iAud uniform carries (all 0..1). Keep in step with the shaders that read them. */
