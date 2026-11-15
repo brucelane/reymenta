@@ -55,7 +55,7 @@ const setting = (k: string) => process.env[k] ?? dotenv[k] ?? '';
 // cloud phones: their user id is their phone id (set by /api/join in the token), so a phone can't speak for another
 const cloudPhones = new Set<string>();
 const cloudRate = new Map<string, { start: number; n: number }>();
-const ROOM_NAME = setting('ROOM') || 'demo';
+const ROOM_NAME = setting('ROOM') || 'reymenta';
 const cloud = setting('PUBSUB_CONNECTION_STRING')
   ? connectCloud(setting('PUBSUB_CONNECTION_STRING'), ROOM_NAME, (userId, raw) => {
       const now = Date.now();

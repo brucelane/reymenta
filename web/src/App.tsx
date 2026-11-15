@@ -22,6 +22,14 @@ export function App() {
 
   const switchLang = (l: Lang) => { setLang(l); saveLang(l); };
 
+  // connected but no welcome after a few seconds: the show (the audience server) isn't running yet
+  const [waiting, setWaiting] = useState(false);
+  useEffect(() => {
+    if (status !== 'open' || me) { setWaiting(false); return; }
+    const timer = window.setTimeout(() => setWaiting(true), 4000);
+    return () => window.clearTimeout(timer);
+  }, [status, me]);
+
   // the app finds the audience server by itself (last address, mDNS, Wi-Fi scan) unless one was typed
   const [server, setServer] = useState(savedServer);
   const [search, setSearch] = useState<'' | 'searching' | 'found' | 'notfound'>('');
@@ -122,7 +130,7 @@ export function App() {
     <main className="play" style={{ ['--hue' as string]: hue }}>
       {langSwitch}
       <header>
-        {me ? <><span className="youare">{t.youAre}</span> <b className="name">{me.name[lang]}</b><span className="place">{t.place(me.slot, me.count)}</span></> : <span>{t.joining}</span>}
+        {me ? <><span className="youare">{t.youAre}</span> <b className="name">{me.name[lang]}</b><span className="place">{t.place(me.slot, me.count)}</span></> : <span>{waiting ? t.waiting : t.joining}</span>}
         {status !== 'open' && me && <span className="warn">{t.reconnecting}</span>}
       </header>
       {full && <p className="warn">{t.full}</p>}

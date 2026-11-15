@@ -9,7 +9,7 @@ const env = Object.fromEntries(readFileSync(new URL('../.env', import.meta.url),
   .map((l) => /^\s*([A-Z_]+)\s*=\s*"?(.*?)"?\s*$/.exec(l)).filter(Boolean).map((m) => [m![1], m![2]]));
 const ps = parseConnectionString(env.PUBSUB_CONNECTION_STRING ?? '');
 if (!ps) { console.error('reymenta/.env: PUBSUB_CONNECTION_STRING missing or unreadable'); process.exit(1); }
-const room = env.ROOM || 'demo';
+const room = env.ROOM || 'reymenta';
 const id = `check-${Math.random().toString(36).slice(2, 10)}`;
 
 const ws = new WebSocket(clientUrl(ps, id, phoneRoles(room), 600), 'json.webpubsub.azure.v1');

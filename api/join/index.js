@@ -21,7 +21,7 @@ module.exports = async function (context, req) {
     context.res = { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', 'access-control-allow-origin': '*' }, body };
   };
   const id = String(req.query.id || '');
-  const room = String(req.query.room || 'demo');
+  const room = String(req.query.room || 'reymenta');
   if (!ID_RE.test(id) || !ROOM_RE.test(room)) return reply(400, { error: 'bad id or room' });
   const cs = process.env.PUBSUB_CONNECTION_STRING || '';
   const endpoint = (/(?:^|;)\s*Endpoint=([^;]+)/i.exec(cs) || [])[1];

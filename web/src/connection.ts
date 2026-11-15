@@ -47,8 +47,8 @@ export function serverUrl(): string {
 // ---- cloud (Azure Web PubSub through the SWA's /api/join) ----
 
 const params = new URLSearchParams(location.search);
-/** The room: ?room= in the address (the QR code projected at the venue), else "demo". */
-export const roomName = (params.get('room') ?? 'demo').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 24) || 'demo';
+/** The room: ?room= in the address (the QR code projected at the venue), else "reymenta". */
+export const roomName = (params.get('room') ?? 'reymenta').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 24) || 'reymenta';
 const LAN_HOST = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1\]?$)|\.local$/;
 
 /** Where /api/join lives: the page's own site, in the app the public site (?join= or reymenta:join overrides it). */
