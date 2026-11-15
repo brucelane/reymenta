@@ -81,6 +81,7 @@ export function connect(
   let delay = 1000;
   let heartbeat: number | undefined;
   let lastSent = 0;
+  let welcomed = false;
   const cloud = useCloud();
   const groupIn = `in-${roomName}`;
   const groupOut = `out-${roomName}`;
@@ -114,17 +115,23 @@ export function connect(
       onStatus('open');
       if (cloud) ws!.send(JSON.stringify({ type: 'joinGroup', group: groupOut }));
       ws!.send(raw(hello()));
+      welcomed = false;
       lastSent = Date.now();
+      let lastHello = Date.now();
       heartbeat = window.setInterval(() => {
-        if (Date.now() - lastSent > 4500) send({ t: 'hb' });
+        // until the server welcomes us, say hello again every 3 s: the show may start after the phone joined
+        if (!welcomed && Date.now() - lastHello > 3000) { send(hello()); lastHello = Date.now(); }
+        else if (Date.now() - lastSent > 4500) send({ t: 'hb' });
       }, 1000);
     };
     ws.onmessage = (e) => {
       try {
         const m = JSON.parse(e.data as string);
-        if (!cloud) onMessage(m as ServerMessage);
         // from the server (REST sendToUser) or the room's group; system and ack messages ignored
-        else if (m.type === 'message' && m.data) onMessage((typeof m.data === 'string' ? JSON.parse(m.data) : m.data) as ServerMessage);
+        const msg = (!cloud ? m : m.type === 'message' && m.data ? (typeof m.data === 'string' ? JSON.parse(m.data) : m.data) : undefined) as ServerMessage | undefined;
+        if (!msg) return;
+        if (msg.t === 'welcome') welcomed = true;
+        onMessage(msg);
       } catch { /* ignore */ }
     };
     ws.onclose = () => {
