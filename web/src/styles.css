@@ -16,6 +16,10 @@ button:active { background: #22222b; }
 .lang button { padding: 4px 9px; font-size: 13px; color: var(--dim); }
 .lang button.on { color: var(--text); border-color: #555; }
 
+.play-badge { position: fixed; top: max(10px, env(safe-area-inset-top)); left: 12px; z-index: 2; display: flex; align-items: center; gap: 6px;
+  padding: 4px 10px; font-size: 13px; color: var(--text); text-decoration: none; background: #15151b; border: 1px solid #2a2a33; border-radius: 10px; }
+.play-badge span { color: #34a853; font-size: 11px; }
+.play .play-badge { display: none; } /* while playing, the top bar holds the player's name */
 .join { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px; text-align: center; }
 .join h1 { margin: 0; font-size: 44px; letter-spacing: 0.08em; font-weight: 600; }
 .server { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--dim); }

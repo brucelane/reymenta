@@ -3,7 +3,7 @@ import { EMOJIS, type ServerMessage } from '../../src/room/protocol';
 import { connect, isNativeApp, phoneId, savedServer, saveServer, type Connection, type Status } from './connection';
 import { discoverServer } from './discovery';
 import { initialLang, saveLang, texts, type Lang } from './i18n';
-import { requestMotionPermission, startMotion, type Motion } from './sensors';
+import { demoMotion, requestMotionPermission, startMotion, type Motion } from './sensors';
 
 interface Me { slot: number; x: number; y: number; count: number; name: { fr: string; en: string }; hue: number }
 
@@ -93,6 +93,14 @@ export function App() {
     };
   };
 
+  // the Android app on Google Play: on the web page only (not inside the app, not on iPhones)
+  const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const playBadge = !isNativeApp && !isIos && !demoMotion && (
+    <a className="play-badge" href="https://play.google.com/store/apps/details?id=com.videodromm.reymenta" target="_blank" rel="noreferrer">
+      <span aria-hidden="true">▶</span> {t.googlePlay}
+    </a>
+  );
+
   const langSwitch = (
     <div className="lang">
       <button className={lang === 'fr' ? 'on' : ''} onClick={() => switchLang('fr')}>FR</button>
@@ -103,7 +111,7 @@ export function App() {
   if (!joined) {
     return (
       <main className="join">
-        {langSwitch}
+        {playBadge}{langSwitch}
         <h1><img className="logo" src="./logo.png" alt="Reymenta" /></h1>
         <p className="tagline">{t.tagline}</p>
         {isNativeApp && (
@@ -128,7 +136,7 @@ export function App() {
   const m = motion.current;
   return (
     <main className="play" style={{ ['--hue' as string]: hue }}>
-      {langSwitch}
+      {playBadge}{langSwitch}
       <header>
         {me ? <><span className="youare">{t.youAre}</span> <b className="name">{me.name[lang]}</b><span className="place">{t.place(me.slot, me.count)}</span></> : <span>{waiting ? t.waiting : t.joining}</span>}
         {status !== 'open' && me && <span className="warn">{t.reconnecting}</span>}
