@@ -44,6 +44,7 @@ export interface Outgoing { id: string; msg: ServerMessage }
 export class Room {
   private people: Participant[] = []; // in slot order (join order)
   private emojis: Array<{ e: number; at: number }> = [];
+  private rejoinAsked = new Map<string, number>();
   mode = 'circles';
 
   get count(): number { return this.people.length; }
@@ -57,7 +58,14 @@ export class Room {
   receive(id: string, msg: PhoneMessage, now: number): Outgoing[] {
     if (msg.t === 'hello') return this.join(id, msg.lang, msg.hue, now);
     const p = this.people.find((q) => q.id === id);
-    if (!p) return [];
+    if (!p) {
+      // a phone the room dropped (asleep for 15 s, or a server restart) keeps talking: ask it to say hello again,
+      // at most every 3 s
+      if (now - (this.rejoinAsked.get(id) ?? 0) < 3000) return [];
+      this.rejoinAsked.set(id, now);
+      return [{ id, msg: { t: 'rejoin' } }];
+    }
+    this.rejoinAsked.delete(id);
     p.lastSeen = now;
     if (msg.t === 'in') {
       if (msg.tx !== undefined) p.tx = msg.tx;

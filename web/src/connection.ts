@@ -131,6 +131,7 @@ export function connect(
         const msg = (!cloud ? m : m.type === 'message' && m.data ? (typeof m.data === 'string' ? JSON.parse(m.data) : m.data) : undefined) as ServerMessage | undefined;
         if (!msg) return;
         if (msg.t === 'welcome') welcomed = true;
+        if (msg.t === 'rejoin') { welcomed = false; send(hello()); return; } // the server forgot us
         onMessage(msg);
       } catch { /* ignore */ }
     };
@@ -145,6 +146,15 @@ export function connect(
     if (ws?.readyState === WebSocket.OPEN) { ws.send(raw(msg)); lastSent = Date.now(); }
   };
 
+  // back from the background (screen locked, app switched): the server may have dropped us meanwhile, and
+  // the socket may be dead without a close event. Say hello again; if the socket is gone, reopen it.
+  const onVisible = () => {
+    if (document.visibilityState !== 'visible' || closed) return;
+    if (ws?.readyState === WebSocket.OPEN) { welcomed = false; send(hello()); }
+    else if (!ws || ws.readyState === WebSocket.CLOSED) { delay = 1000; void open(); }
+  };
+  document.addEventListener('visibilitychange', onVisible);
+
   void open();
-  return { send, close() { closed = true; ws?.close(); } };
+  return { send, close() { closed = true; document.removeEventListener('visibilitychange', onVisible); ws?.close(); } };
 }

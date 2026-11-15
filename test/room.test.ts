@@ -58,4 +58,9 @@ test('room: join, aggregates, emoji rate, timeout', () => {
   const updates = room.prune(TIMEOUT_MS + 2000); // a was last seen at 1500
   assert.equal(room.count, 1);
   assert.equal(updates[0].msg.t, 'place');
+  // the dropped phone keeps talking: asked to rejoin, at most every 3 s
+  const now = TIMEOUT_MS + 3000;
+  assert.deepEqual(room.receive('phone-aaaaaaaa', { t: 'hb' }, now), [{ id: 'phone-aaaaaaaa', msg: { t: 'rejoin' } }]);
+  assert.deepEqual(room.receive('phone-aaaaaaaa', { t: 'in', tx: 0.1 }, now + 100), []);
+  assert.equal(room.receive('phone-aaaaaaaa', { t: 'hello', id: 'phone-aaaaaaaa', lang: 'fr' }, now + 200)[0].msg.t, 'welcome');
 });

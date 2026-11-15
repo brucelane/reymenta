@@ -23,7 +23,9 @@ export type ServerMessage =
   /** the show's mode (what the phone screen shows), e.g. "circles", "off" */
   | { t: 'mode'; mode: string }
   /** the room is full (cap reached) */
-  | { t: 'full' };
+  | { t: 'full' }
+  /** the server doesn't know this phone (it timed out, or the server restarted): say hello again */
+  | { t: 'rejoin' };
 
 /** The fixed emoji list: the phone sends an index, never text. */
 export const EMOJIS = ['🔥', '😍', '🤯', '👏', '🚀', '🌀', '💜', '🎛️'] as const;
