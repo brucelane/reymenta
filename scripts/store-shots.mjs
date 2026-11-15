@@ -59,22 +59,32 @@ try {
   await wait(2000);
 
   const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ['--hide-scrollbars'] });
-  const shot = async (lang, n) => {
+  // Play's three screenshot sets, portrait (the app is held upright): phone, 7" and 10" tablets
+  const DEVICES = [
+    { dir: 'phone', width: 360, height: 640, scale: 3 },        // 1080x1920
+    { dir: 'tablet-7', width: 600, height: 960, scale: 2 },     // 1200x1920
+    { dir: 'tablet-10', width: 800, height: 1280, scale: 1.5 }, // 1200x1920
+  ];
+  const shot = async (device, lang, n) => {
+    const folder = join(root, 'store', 'google-play', device.dir);
+    mkdirSync(folder, { recursive: true });
     const page = await browser.newPage();
-    await page.setViewport({ width: 360, height: 640, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+    await page.setViewport({ width: device.width, height: device.height, deviceScaleFactor: device.scale, isMobile: true, hasTouch: true });
     await page.evaluateOnNewDocument((l) => { localStorage.setItem('reymenta:lang', l); }, lang);
     await page.goto('http://localhost:5192/?demo', { waitUntil: 'networkidle0' });
     await wait(500);
-    await page.screenshot({ path: join(out, `${n}-join-${lang}.png`) });
+    await page.screenshot({ path: join(folder, `${n}-join-${lang}.png`) });
     await page.click('button.big');
     await wait(2500); // welcome, a few demo tilts
-    await page.screenshot({ path: join(out, `${n + 1}-play-${lang}.png`) });
+    await page.screenshot({ path: join(folder, `${n + 1}-play-${lang}.png`) });
     await page.close();
   };
-  await shot('fr', 1);
-  await shot('en', 3);
+  for (const device of DEVICES) {
+    await shot(device, 'fr', 1);
+    await shot(device, 'en', 3);
+  }
   await browser.close();
-  console.log(`screenshots in ${out}`);
+  console.log(`screenshots in ${join(root, 'store', 'google-play')}: ${DEVICES.map((d) => d.dir).join(', ')}`);
 } catch (e) {
   console.error(e);
   process.exitCode = 1;

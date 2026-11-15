@@ -3,7 +3,7 @@
 App name: **Reymenta**
 Category: Music & Audio (or Entertainment). Contains ads: no. In-app purchases: no. Target audience: 13+.
 Privacy policy: https://assets.batchass.fr/reymenta/privacy.html
-Graphics: `icon-512.png`, `feature-graphic-1024x500.png`, `phone/*.png` (1080x1920) made by `scripts/make-icons.ps1`
+Graphics: `icon-512.png`, `feature-graphic-1024x500.png`, `phone/*.png` (1080x1920), `tablet-7/*.png` and `tablet-10/*.png` (1200x1920) made by `scripts/make-icons.ps1`
 and `scripts/store-shots.mjs`.
 
 ## Français
