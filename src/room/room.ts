@@ -21,7 +21,13 @@ export const AUD = {
   emoji: 6,      // all emoji activity in the last 3 s
   fingerX: 7,    // average finger position of the phones touching (0.5 when none)
   fingerY: 8,
+  // 9..15 free
+  look: 16,      // 16..31: the first PER_PHONE_LOOK phones' own look, x then y (2026-11-16): finger while touching,
+                 // else tilt; 0.5 = straight ahead. Slot order = join order = the eyes' order in the shaders.
 } as const;
+
+/** How many phones get their own look in iAud16..31 (2 values each). */
+export const PER_PHONE_LOOK = 8;
 
 /** A phone silent for this long (no message, no heartbeat) leaves the room. */
 export const TIMEOUT_MS = 15000;
@@ -160,6 +166,11 @@ export class Room {
     v[AUD.fire] = Math.min(1, fire / Math.max(1, n * 6));
     const recent = this.emojis.filter((x) => now - x.at < 3000).length;
     v[AUD.emoji] = Math.min(1, recent / Math.max(1, n * 2));
+    for (let i = 0; i < PER_PHONE_LOOK; i++) {
+      const p = this.people[i];
+      v[AUD.look + 2 * i] = !p ? 0.5 : p.to ? p.px : (p.tx + 1) / 2;
+      v[AUD.look + 2 * i + 1] = !p ? 0.5 : p.to ? p.py : (p.ty + 1) / 2;
+    }
     return v.map((x) => Math.min(1, Math.max(0, x)));
   }
 }

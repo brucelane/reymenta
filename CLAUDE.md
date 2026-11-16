@@ -38,3 +38,14 @@ room's tilt/shake/touch/emoji into Cinder uniforms `iAud0..iAud31` (260..291). O
 - Cinder audience pass + data texture (per-phone circles and lines), the timeline's Audience routing node,
   `/screen` + solo mode, Azure Web PubSub (`reymenta` hub on `sophiaantipolis`) + `/api/join` on the SWA, PWA
   service worker.
+- 2026-11-16: QR code for https://live.videodromm.com (iPhones join through the web page, no iOS app):
+  `web/public/qr.png` (512 px, served at `/qr.png` after the next deploy) and `assets/images/reymenta-qr.png`
+  (1024 px), shown by the new Cinder folder `assets/glsl/reymentaqr` (copy of `qrcode`: `inputImage.fs`, fbo0's
+  image = the QR). Made with the `qrcode` npm package (1.5.4, scratch install, not a dependency). Not in the
+  setlist `assets/reymenta.json` yet. The audience server must run (`pnpm server`) for the page to connect.
+- 2026-11-16: per-phone look: `iAud16..31` = the first 8 phones' own look (x, y; finger while touching, else tilt;
+  0.5 = ahead), in join order (= slot order = the eyes' order). `assets/glsl/audiencetest/audience_eyes.glsl`
+  `phoneLook()`: eye i follows phone i, eyes beyond 8 the room average (iAud1/2, 7/8). Test in `test/room.test.ts`
+  (9/9); both audiencetest shaders compile in WebGL2 (`pnpm glsl-check`). Tried with 2 phones (an iPhone through
+  live.videodromm.com, the Android app on the LAN). Note: stopping a background `npx tsx` leaves its node child
+  holding port 5191 (EADDRINUSE on restart): stop the node process itself.

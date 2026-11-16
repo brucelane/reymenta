@@ -64,3 +64,15 @@ test('room: join, aggregates, emoji rate, timeout', () => {
   assert.deepEqual(room.receive('phone-aaaaaaaa', { t: 'in', tx: 0.1 }, now + 100), []);
   assert.equal(room.receive('phone-aaaaaaaa', { t: 'hello', id: 'phone-aaaaaaaa', lang: 'fr' }, now + 200)[0].msg.t, 'welcome');
 });
+
+test('each of the first phones gets its own look in iAud16..31 (finger while touching, else tilt)', () => {
+  const room = new Room();
+  room.receive('a', { t: 'hello', lang: 'fr' } as never, 0);
+  room.receive('b', { t: 'hello', lang: 'en' } as never, 0);
+  room.receive('a', { t: 'in', tx: 1, ty: -1 }, 10);
+  room.receive('b', { t: 'in', to: 1, px: 0.2, py: 0.9 }, 10);
+  const v = room.aggregates(20);
+  assert.deepEqual([v[AUD.look], v[AUD.look + 1]], [1, 0]);
+  assert.deepEqual([v[AUD.look + 2], v[AUD.look + 3]], [0.2, 0.9]);
+  assert.equal(v[AUD.look + 4], 0.5, 'nobody in slot 3: straight ahead');
+});
