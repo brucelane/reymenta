@@ -68,3 +68,8 @@ room's tilt/shake/touch/emoji into Cinder uniforms `iAud0..iAud31` (260..291). O
   widget (`web/src/turnstile.ts`, interaction-only, `#turnstile`) and sends `&t=`; `/api/join` checks it with
   Cloudflare when `TURNSTILE_SECRET` is set (`TURNSTILE_SOFT=1` lets phones in if Cloudflare can't be reached).
   Tests 14/14 (Cloudflare mocked).
+- 2026-11-17: the whole gate checked on a real phone on mobile data (live.videodromm.com/?k=…): code from the
+  link, Turnstile, token, welcome from the audience server (`cloudPhones: 1`). Bug found on the way: the Turnstile
+  slot had `id="turnstile"`, which made `window.turnstile` the div (browsers' named access), so joining never
+  started; now `#cf-turnstile-slot` and the API checked by `render` being a function (6.11.17.4). Don't give an
+  element an id that matches a global a script expects.
