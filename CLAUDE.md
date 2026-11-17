@@ -94,3 +94,6 @@ room's tilt/shake/touch/emoji into Cinder uniforms `iAud0..iAud31` (260..291). O
   `POST /admin/emojis/on|off|auto` = `live/Show-Access.ps1 emojis on|off|auto`; `/status` has `emojis`. Checked with
   a stand-in Cinder (folder announcements) and a test phone: hidden on join, shown on audiencetest, hidden on polo.
   The emoji shader moved into `assets/glsl/audiencetest/audience-emojis.glsl`.
+- 2026-11-17: `pnpm show-qr` draws a **16:9** image (1920x1080: QR left, code large on the right, away from the
+  edges): the square one was stretched by Cinder and its code darkened by post.glsl's vignette. Also shown by the new
+  `assets/glsl/ableton` folder (the FRAUG talk, fbo 1) on the deck's "Jouez avec nous" slide.

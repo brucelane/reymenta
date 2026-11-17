@@ -34,27 +34,31 @@ const FONT = {
 
 const qr = QRCode.create(url, { errorCorrectionLevel: 'M' });
 const n = qr.modules.size;
-const SIZE = 1024;
+// 16:9 like Cinder's output (a square image was stretched, 2026-11-17): the QR on the left, the code large on the
+// right, both kept away from the edges (post.glsl's vignette darkens them)
+const W = 1920, H = 1080;
 const margin = 4; // quiet zone, in modules
-const cell = Math.floor((SIZE * 0.82) / (n + 2 * margin));
+const cell = Math.floor((H * 0.8) / (n + 2 * margin));
 const qrPx = cell * (n + 2 * margin);
-const ox = Math.floor((SIZE - qrPx) / 2);
-const oy = Math.floor(SIZE * 0.02);
+const ox = Math.floor(W * 0.08);
+const oy = Math.floor((H - qrPx) / 2);
 
-const png = new PNG({ width: SIZE, height: SIZE });
-const set = (x, y, v) => { const i = (y * SIZE + x) * 4; png.data[i] = png.data[i + 1] = png.data[i + 2] = v; png.data[i + 3] = 255; };
-for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) set(x, y, 0); // black around: the show's background
+const png = new PNG({ width: W, height: H });
+const set = (x, y, v) => { const i = (y * W + x) * 4; png.data[i] = png.data[i + 1] = png.data[i + 2] = v; png.data[i + 3] = 255; };
+for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) set(x, y, 0); // black around: the show's background
 for (let y = 0; y < qrPx; y++) for (let x = 0; x < qrPx; x++) set(ox + x, oy + y, 255); // white quiet zone
 for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
   if (!qr.modules.get(r, c)) continue;
   for (let y = 0; y < cell; y++) for (let x = 0; x < cell; x++) set(ox + (c + margin) * cell + x, oy + (r + margin) * cell + y, 0);
 }
-// the code under the QR, white on black
-const dot = Math.floor((SIZE * 0.12) / 7);
+// the code right of the QR, white on black, as large as the space allows
+const left = ox + qrPx + Math.floor(W * 0.05);
+const room = W - left - Math.floor(W * 0.08);
+const dot = Math.max(4, Math.floor(room / (code.length * 5 + (code.length - 1) * 2)));
 const gap = dot * 2;
 const textW = code.length * 5 * dot + (code.length - 1) * gap;
-let tx = Math.floor((SIZE - textW) / 2);
-const ty = oy + qrPx + Math.floor((SIZE - oy - qrPx - 7 * dot) / 2);
+let tx = left + Math.floor((room - textW) / 2);
+const ty = Math.floor((H - 7 * dot) / 2);
 for (const ch of code) {
   FONT[ch].forEach((row, ry) => [...row].forEach((p, rx) => {
     if (p !== '#') return;
