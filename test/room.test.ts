@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { gridSize, layout } from '../src/room/layout';
 import { nameFor } from '../src/room/names';
 import { parsePhoneMessage } from '../src/room/protocol';
-import { AUD, Room, TIMEOUT_MS } from '../src/room/room';
+import { AUD, EMOJI_FADE_MS, EMOJI_SLOTS, Room, TIMEOUT_MS } from '../src/room/room';
 
 test('grid sizes follow 1 / row of 3 / 3x3 / 4x4', () => {
   assert.deepEqual(gridSize(1), { cols: 1, rows: 1 });
@@ -75,4 +75,22 @@ test('each of the first phones gets its own look in iAud16..31 (finger while tou
   assert.deepEqual([v[AUD.look], v[AUD.look + 1]], [1, 0]);
   assert.deepEqual([v[AUD.look + 2], v[AUD.look + 3]], [0.2, 0.9]);
   assert.equal(v[AUD.look + 4], 0.5, 'nobody in slot 3: straight ahead');
+});
+
+test('room: each emoji on its own in iAud9..15, fading', () => {
+  const room = new Room();
+  room.receive('phone-aaaaaaaa', { t: 'hello', id: 'phone-aaaaaaaa', lang: 'fr' }, 0);
+  room.receive('phone-bbbbbbbb', { t: 'hello', id: 'phone-bbbbbbbb', lang: 'fr' }, 0);
+  room.receive('phone-aaaaaaaa', { t: 'emo', e: 1 }, 2000); // 😍 (a phone's first emoji comes 1.5 s after joining at the earliest)
+  room.receive('phone-bbbbbbbb', { t: 'emo', e: 1 }, 2000); // 😍
+  room.receive('phone-bbbbbbbb', { t: 'emo', e: 7 }, 4000); // 🎛️ (b's second emoji, 2 s later: allowed)
+  let v = room.aggregates(2000);
+  assert.ok(Math.abs(v[AUD.each] - 2 / EMOJI_SLOTS) < 1e-9, 'two 😍 = two slots');
+  assert.equal(v[AUD.each + 6], 0);
+  v = room.aggregates(4000);
+  assert.ok(Math.abs(v[AUD.each + 6] - 1 / EMOJI_SLOTS) < 1e-9, 'one 🎛️ = one slot');
+  // they fade: after about 7 s of no taps less than a third of a slot is left
+  v = room.aggregates(2000 + 3 * EMOJI_FADE_MS);
+  assert.ok(v[AUD.each] * EMOJI_SLOTS < 2 * 0.06);
+  assert.equal(v[AUD.fire], 0); // 🔥 untouched
 });

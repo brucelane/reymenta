@@ -77,3 +77,12 @@ room's tilt/shake/touch/emoji into Cinder uniforms `iAud0..iAud31` (260..291). O
   (`accelerationIncludingGravity`) when the orientation event (gyroscope) doesn't come for a second, or the linear
   acceleration is missing (`web/src/sensors.ts`); `?debug` shows the source (gyro / accel / none) and the values.
   Permission check accepts a phone with DeviceMotionEvent only. Not tried on that phone yet.
+- 2026-11-17: the accelerometer fallback for tilt/shake confirmed on the user's old phone.
+- 2026-11-17: **emojis on screen.** `iAud9..15` = 😍 🤯 👏 🚀 🌀 💜 🎛️ each on its own (`AUD.each`): every tap adds
+  1/`EMOJI_SLOTS` (12), fading with `EMOJI_FADE_MS` (2.5 s, gone after ~7 s); 🔥 stays on `iAud5`. Shader
+  `assets/audience-emojis.glsl` (at the assets root, next to mixette/post: Cinder finds it from any folder) draws
+  one emoji per tap rising like a bubble, from `assets/images/emoji-atlas.png` (`pnpm emoji-atlas`: Noto Emoji
+  2D/png/128, Apache 2.0, notice in `emoji-atlas.LICENSE.txt`). Each Reymenta folder has it as its last fbo
+  (`fbo8.json` = `iWeight8`; `sky`: `fbo7.json` = `iWeight7`): hidden until that weight is raised (Cinder doesn't
+  even render an fbo at weight 0). Also `audiencetest/fbo2.json`. `/status` shows 16 values. Tests 15/15; 10 fake
+  phones: values rise per tap and fall back to 0 after they leave. Not seen in Cinder yet.

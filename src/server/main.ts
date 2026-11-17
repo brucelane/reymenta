@@ -135,7 +135,7 @@ const http = createServer((req, res) => {
     res.end(JSON.stringify({
       open: showOpen, count: room.count, mode: room.mode, cinder: cinder.connected, cloud: cloud ? cloud.link.connected : 'off',
       room: ROOM_NAME, cloudPhones: cloudPhones.size,
-      aggregates: room.aggregates(Date.now()).slice(0, 9).map((v) => Math.round(v * 1000) / 1000),
+      aggregates: room.aggregates(Date.now()).slice(0, 16).map((v) => Math.round(v * 1000) / 1000),
     }));
     return;
   }

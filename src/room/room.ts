@@ -21,7 +21,9 @@ export const AUD = {
   emoji: 6,      // all emoji activity in the last 3 s
   fingerX: 7,    // average finger position of the phones touching (0.5 when none)
   fingerY: 8,
-  // 9..15 free
+  each: 9,       // 9..15 (2026-11-17): EMOJIS[1..7] (😍 🤯 👏 🚀 🌀 💜 🎛️) each on its own: every tap adds
+                 // 1/EMOJI_SLOTS, fading with EMOJI_FADE_MS; the shader shows that many of it (audience_emoji.glsl).
+                 // 🔥 keeps iAud5. Absolute (not per room size): one tap = one emoji on screen.
   look: 16,      // 16..31: the first PER_PHONE_LOOK phones' own look, x then y (2026-11-16): finger while touching,
                  // else tilt; 0.5 = straight ahead. Slot order = join order = the eyes' order in the shaders.
 } as const;
@@ -33,6 +35,10 @@ export const PER_PHONE_LOOK = 8;
 export const TIMEOUT_MS = 15000;
 /** One emoji per phone every this many ms. */
 export const EMOJI_INTERVAL_MS = 1500;
+/** Emojis of one kind the shader can show at once (iAud9..15 = count / EMOJI_SLOTS). */
+export const EMOJI_SLOTS = 12;
+/** A tap's emoji fades with this time constant: about 7 s until it's gone. */
+export const EMOJI_FADE_MS = 2500;
 
 export interface Participant {
   id: string;
@@ -166,6 +172,11 @@ export class Room {
     v[AUD.fire] = Math.min(1, fire / Math.max(1, n * 6));
     const recent = this.emojis.filter((x) => now - x.at < 3000).length;
     v[AUD.emoji] = Math.min(1, recent / Math.max(1, n * 2));
+    for (let k = 1; k < EMOJIS.length; k++) {
+      let sum = 0;
+      for (const x of this.emojis) if (x.e === k && x.at <= now) sum += Math.exp(-(now - x.at) / EMOJI_FADE_MS);
+      v[AUD.each + k - 1] = Math.min(1, sum / EMOJI_SLOTS);
+    }
     for (let i = 0; i < PER_PHONE_LOOK; i++) {
       const p = this.people[i];
       v[AUD.look + 2 * i] = !p ? 0.5 : p.to ? p.px : (p.tx + 1) / 2;
