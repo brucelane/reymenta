@@ -47,6 +47,7 @@ export async function turnstileToken(base: string): Promise<string> {
     waiting = (token) => { window.clearTimeout(timer); waiting = undefined; resolve(token); };
     try {
       if (widget === undefined) {
+        widget = api.render(el, {
           sitekey: key,
           appearance: 'interaction-only',
           execution: 'execute',
