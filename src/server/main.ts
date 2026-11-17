@@ -56,8 +56,21 @@ const setting = (k: string) => process.env[k] ?? dotenv[k] ?? '';
 const cloudPhones = new Set<string>();
 const cloudRate = new Map<string, { start: number; n: number }>();
 const ROOM_NAME = setting('ROOM') || 'reymenta';
+// open/closed (studies/show-access.md): closed, every phone is disconnected and any that comes back is closed at
+// once (cloud: through the REST API, at most once per phone every 10 s). In memory: a restart opens again
+// (SHOW_CLOSED=1 in the environment or .env starts closed).
+let showOpen = setting('SHOW_CLOSED') !== '1';
+const kicked = new Map<string, number>(); // cloud phone -> last kick
+const kickCloudPhone = (userId: string) => {
+  const now = Date.now();
+  if (!cloud || now - (kicked.get(userId) ?? 0) < 10000) return;
+  kicked.set(userId, now);
+  void cloud.kickUser(userId);
+};
+
 const cloud = setting('PUBSUB_CONNECTION_STRING')
   ? connectCloud(setting('PUBSUB_CONNECTION_STRING'), ROOM_NAME, (userId, raw) => {
+      if (!showOpen) { kickCloudPhone(userId); return; }
       const now = Date.now();
       const r = cloudRate.get(userId) ?? { start: now, n: 0 };
       if (now - r.start > 1000) { r.start = now; r.n = 0; }
@@ -78,7 +91,39 @@ function deliver(out: Outgoing[]) {
   }
 }
 
+/** Closes the show: everyone out of the room, LAN sockets closed, cloud phones disconnected. */
+async function closeShow(): Promise<string> {
+  showOpen = false;
+  for (const id of [...sockets.keys()]) { deliver(room.leave(id)); sockets.get(id)?.close(); }
+  sockets.clear();
+  let cloudResult = 'no cloud';
+  if (cloud) {
+    const ids = [...cloudPhones];
+    for (const id of ids) deliver(room.leave(id));
+    const ok = await cloud.kickRoom();
+    await Promise.all(ids.map((id) => cloud.kickUser(id)));
+    cloudPhones.clear();
+    cloudResult = `${ids.length} cloud phone(s) closed${ok ? '' : ' (the room-wide close failed)'}`;
+  }
+  log(`show CLOSED: ${cloudResult}`);
+  return cloudResult;
+}
+
+const isLocal = (addr?: string) => !!addr && /^(127\.|::1$|::ffff:127\.)/.test(addr);
+const ADMIN_TOKEN = tswsToken();
+
 const http = createServer((req, res) => {
+  // admin (Show-Access.ps1): this PC only, with TSWebsocketServer's token when it has one
+  if (req.url === '/admin/open' || req.url === '/admin/close') {
+    if (req.method !== 'POST' || !isLocal(req.socket.remoteAddress) || (ADMIN_TOKEN && req.headers['x-token'] !== ADMIN_TOKEN)) {
+      res.writeHead(403).end();
+      return;
+    }
+    const done = (body: unknown) => { res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
+    if (req.url === '/admin/open') { showOpen = true; kicked.clear(); log('show OPEN'); done({ open: true }); }
+    else void closeShow().then((cloudResult) => done({ open: false, cloud: cloudResult }));
+    return;
+  }
   // what the Android app's discovery probes (web/src/discovery.ts): says only that this is the audience server
   if (req.url === '/ping') {
     res.writeHead(200, { 'content-type': 'application/json', 'access-control-allow-origin': '*' });
@@ -88,7 +133,7 @@ const http = createServer((req, res) => {
   if (req.url === '/status') {
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({
-      count: room.count, mode: room.mode, cinder: cinder.connected, cloud: cloud ? cloud.link.connected : 'off',
+      open: showOpen, count: room.count, mode: room.mode, cinder: cinder.connected, cloud: cloud ? cloud.link.connected : 'off',
       room: ROOM_NAME, cloudPhones: cloudPhones.size,
       aggregates: room.aggregates(Date.now()).slice(0, 9).map((v) => Math.round(v * 1000) / 1000),
     }));
@@ -107,6 +152,7 @@ wss.on('connection', (ws) => {
     const now = Date.now();
     if (now - windowStart > 1000) { windowStart = now; inWindow = 0; }
     if (++inWindow > 20) return;
+    if (!showOpen) { ws.close(); return; }
     const msg = parsePhoneMessage(data.toString());
     if (!msg) return;
     if (msg.t === 'hello') {

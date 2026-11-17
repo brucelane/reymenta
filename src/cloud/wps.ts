@@ -43,6 +43,21 @@ export const phoneRoles = (room: string) => [`webpubsub.sendToGroup.${groupIn(ro
 /** Roles of the audience server in a room. */
 export const serverRoles = (room: string) => [`webpubsub.joinLeaveGroup.${groupIn(room)}`, `webpubsub.sendToGroup.${groupOut(room)}`];
 
+/** REST: closes every connection of a group or of a user (the emergency close, studies/show-access.md). */
+export async function closeConnections(ps: PubSub, target: { group: string } | { user: string }): Promise<boolean> {
+  const path = 'group' in target ? `groups/${encodeURIComponent(target.group)}` : `users/${encodeURIComponent(target.user)}`;
+  // same address form and token audience as sendToUser (only api-version in the query)
+  const url = `${ps.endpoint}/api/hubs/${HUB}/${path}/:closeConnections?api-version=2024-01-01`;
+  const now = Math.floor(Date.now() / 1000);
+  const token = signJwt({ aud: url, iat: now, exp: now + 300 }, ps.key);
+  try {
+    const res = await fetch(url, { method: 'POST', headers: { authorization: `Bearer ${token}` } });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** REST: sends a JSON message to one user (a phone). Resolves false on failure. */
 export async function sendToUser(ps: PubSub, userId: string, data: unknown): Promise<boolean> {
   const url = `${ps.endpoint}/api/hubs/${HUB}/users/${encodeURIComponent(userId)}/:send?api-version=2024-01-01`;

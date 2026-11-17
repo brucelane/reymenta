@@ -13,8 +13,12 @@
 //                              tokens expire at SHOW_OPEN_UNTIL
 //   SHOW_FORCE                 "open" (rehearsals: no window needed) or "closed" (close at once); empty = the window
 //   JOIN_ORIGINS               extra allowed origins for CORS, comma-separated (the page's own and the app's are in)
+//   TURNSTILE_SECRET           Cloudflare Turnstile's secret: when set, the page's Turnstile token (&t=) is checked
+//                              with Cloudflare (siteverify) before a token is handed out
+//   TURNSTILE_SOFT             "1": let phones in when Cloudflare itself can't be reached (never when it says no)
 // Answers: 200 {url, room, until}; 403 {closed: true, opensAt?} outside the window; 403 {code: true} without the
-// right code; 400 bad id or room; 503 not configured. Same token code as src/cloud/wps.ts (no npm package needed).
+// right code; 403 {captcha: true} when Turnstile says no; 400 bad id or room; 503 not configured.
+// Same token code as src/cloud/wps.ts (no npm package needed).
 const crypto = require('node:crypto');
 
 const ID_RE = /^[A-Za-z0-9_-]{8,40}$/;
@@ -41,6 +45,22 @@ function codeOk(given, expected) {
 }
 
 const time = (s) => { const t = Date.parse(s || ''); return Number.isFinite(t) ? t : undefined; };
+
+/** Cloudflare Turnstile: 'ok' | 'no' | 'unreachable'. */
+async function turnstile(secret, response, ip) {
+  if (!response) return 'no';
+  const body = new URLSearchParams({ secret, response, ...(ip ? { remoteip: ip } : {}) });
+  try {
+    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST', body, signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return 'unreachable';
+    const data = await res.json();
+    return data && data.success === true ? 'ok' : 'no';
+  } catch {
+    return 'unreachable';
+  }
+}
 
 /** {open, until?, opensAt?} from SHOW_FORCE and the window. */
 function showState(env, now) {
@@ -79,6 +99,11 @@ module.exports = async function (context, req) {
   const show = showState(env, now);
   if (!show.open) return reply(403, { closed: true, ...(show.opensAt ? { opensAt: show.opensAt } : {}) });
   if (room !== showRoom || !codeOk(req.query.k, env.SHOW_CODE)) return reply(403, { code: true });
+  if (env.TURNSTILE_SECRET) {
+    const fwd = String((req.headers && (req.headers['x-forwarded-for'] || req.headers['X-Forwarded-For'])) || '');
+    const check = await turnstile(env.TURNSTILE_SECRET, String(req.query.t || ''), fwd.split(',')[0].trim().replace(/:\d+$/, ''));
+    if (check === 'no' || (check === 'unreachable' && env.TURNSTILE_SOFT !== '1')) return reply(403, { captcha: true });
+  }
 
   const nowS = Math.floor(now / 1000);
   const exp = show.until ? Math.min(nowS + MAX_SECONDS, Math.floor(show.until / 1000)) : nowS + MAX_SECONDS;

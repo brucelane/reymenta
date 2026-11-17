@@ -4,7 +4,7 @@
 // Subprotocol json.webpubsub.azure.v1: {type:"joinGroup"}, then {type:"message", from:"group", fromUserId, data}.
 
 import WebSocket from 'ws';
-import { clientUrl, groupIn, parseConnectionString, sendToUser, serverRoles, type PubSub } from '../cloud/wps';
+import { clientUrl, closeConnections, groupIn, groupOut, parseConnectionString, sendToUser, serverRoles, type PubSub } from '../cloud/wps';
 
 export interface CloudLink { close(): void; readonly connected: boolean }
 
@@ -13,7 +13,7 @@ export function connectCloud(
   room: string,
   onPhoneMessage: (userId: string, raw: string) => void,
   log: (s: string) => void,
-): { link: CloudLink; send: (userId: string, msg: unknown) => void } | undefined {
+): { link: CloudLink; send: (userId: string, msg: unknown) => void; kickUser: (userId: string) => Promise<boolean>; kickRoom: () => Promise<boolean> } | undefined {
   const ps: PubSub | undefined = parseConnectionString(connectionString);
   if (!ps) { log('cloud: PUBSUB_CONNECTION_STRING unreadable, cloud off'); return undefined; }
   let ws: WebSocket | undefined;
@@ -51,5 +51,8 @@ export function connectCloud(
   return {
     link: { close() { closed = true; ws?.close(); }, get connected() { return connected; } },
     send: (userId, msg) => { void sendToUser(ps, userId, msg); },
+    // phones join "out-<room>" when they connect; this server only joins "in-<room>", so closing "out" spares it
+    kickUser: (userId) => closeConnections(ps, { user: userId }),
+    kickRoom: () => closeConnections(ps, { group: groupOut(room) }),
   };
 }

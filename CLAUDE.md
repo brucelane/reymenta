@@ -58,3 +58,13 @@ room's tilt/shake/touch/emoji into Cinder uniforms `iAud0..iAud31` (260..291). O
   `pnpm show-qr [code]` makes a 6-digit code and `assets/images/reymenta-qr-show.png` (QR + the code written
   under it; git-ignored, the assets repo is public), shown by `assets/glsl/reymentaqr`. Tests `test/join.test.ts`
   (13/13 with the others). The LAN path (phones on the show Wi-Fi to the local audience server) has no gate.
+- 2026-11-17: **open/close** and **Turnstile**. Audience server: `POST /admin/open|close` (localhost only, with
+  TSWebsocketServer's token as `X-Token`), `/status` has `open`; closed = every LAN socket closed, the room's cloud
+  phones closed through Web PubSub REST (`closeConnections` on the "out" group and each user, `src/cloud/wps.ts`),
+  and any phone that comes back closed at once (cloud: once per phone every 10 s); `SHOW_CLOSED=1` starts closed.
+  Checked: 3 fake phones out on close, back on open; a cloud connection cut 0.24 s after the REST call. Operator:
+  `live/Show-Access.ps1 status|open|close|window|plan` (the audience server + the SWA settings through az when
+  installed, else it prints them). Turnstile: `/api/config` gives the page `TURNSTILE_SITEKEY`; the page runs the
+  widget (`web/src/turnstile.ts`, interaction-only, `#turnstile`) and sends `&t=`; `/api/join` checks it with
+  Cloudflare when `TURNSTILE_SECRET` is set (`TURNSTILE_SOFT=1` lets phones in if Cloudflare can't be reached).
+  Tests 14/14 (Cloudflare mocked).

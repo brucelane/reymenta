@@ -146,6 +146,9 @@ export function App() {
       {status === 'gate-closed' && !me && (
         <p className="warn">{gateOpensAt ? t.gateOpensAt(new Date(gateOpensAt).toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' })) : t.gateClosed}</p>
       )}
+      {status === 'gate-captcha' && <p className="warn">{t.gateCaptcha}</p>}
+      {/* Cloudflare Turnstile's checkbox, shown only when it needs the person (web/src/turnstile.ts) */}
+      <div id="turnstile" className="turnstile" />
       {status === 'gate-code' && (
         <form className="code" onSubmit={(e) => { e.preventDefault(); saveShowCode(code); conn.current?.retryNow(); }}>
           <label>{t.gateCode}

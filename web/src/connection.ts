@@ -4,9 +4,10 @@
 // Reconnects with a growing delay, says hello again each time.
 
 import type { PhoneMessage, ServerMessage } from '../../src/room/protocol';
+import { turnstileToken } from './turnstile';
 
 // 'gate-closed': the show isn't open (outside its window); 'gate-code': the show's code is missing or wrong
-export type Status = 'connecting' | 'open' | 'closed' | 'gate-closed' | 'gate-code';
+export type Status = 'connecting' | 'open' | 'closed' | 'gate-closed' | 'gate-code' | 'gate-captcha';
 
 export interface Connection {
   send(msg: PhoneMessage): void;
@@ -115,15 +116,16 @@ export function connect(
     ? JSON.stringify({ type: 'sendToGroup', group: groupIn, dataType: 'json', data: msg, noEcho: true })
     : JSON.stringify(msg);
 
-  class GateError extends Error { constructor(public status: 'gate-closed' | 'gate-code') { super(status); } }
+  class GateError extends Error { constructor(public status: 'gate-closed' | 'gate-code' | 'gate-captcha') { super(status); } }
 
   const address = async (): Promise<string> => {
     if (!cloud) return serverUrl();
-    const res = await fetch(`${joinBase()}/api/join?id=${encodeURIComponent(phone)}&room=${roomName}&k=${encodeURIComponent(showCode())}`, { cache: 'no-store' });
+    const t = await turnstileToken(joinBase());
+    const res = await fetch(`${joinBase()}/api/join?id=${encodeURIComponent(phone)}&room=${roomName}&k=${encodeURIComponent(showCode())}&t=${encodeURIComponent(t)}`, { cache: 'no-store' });
     if (res.status === 403) {
       const body = await res.json().catch(() => ({}));
       gateOpensAt = typeof body.opensAt === 'string' ? body.opensAt : '';
-      throw new GateError(body.code ? 'gate-code' : 'gate-closed');
+      throw new GateError(body.code ? 'gate-code' : body.captcha ? 'gate-captcha' : 'gate-closed');
     }
     if (res.status === 503) throw new GateError('gate-closed'); // the show isn't set up online
     if (!res.ok) throw new Error(`join ${res.status}`);
@@ -145,6 +147,7 @@ export function connect(
         onStatus(e.status);
         // closed: ask again every 30 s (the window opens by itself); a code problem waits for the person
         if (e.status === 'gate-closed') retry(30000);
+        if (e.status === 'gate-captcha') retry(10000);
         return;
       }
       onStatus('closed'); retry(); return;

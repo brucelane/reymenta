@@ -15,7 +15,7 @@ const BASE = {
 
 async function call(env: Record<string, string>, query: Record<string, string>, origin = 'https://live.videodromm.com') {
   const saved = { ...process.env };
-  for (const k of ['PUBSUB_CONNECTION_STRING', 'SHOW_CODE', 'SHOW_ROOM', 'SHOW_OPEN_FROM', 'SHOW_OPEN_UNTIL', 'SHOW_FORCE', 'JOIN_ORIGINS']) delete process.env[k];
+  for (const k of ['PUBSUB_CONNECTION_STRING', 'SHOW_CODE', 'SHOW_ROOM', 'SHOW_OPEN_FROM', 'SHOW_OPEN_UNTIL', 'SHOW_FORCE', 'JOIN_ORIGINS', 'TURNSTILE_SECRET', 'TURNSTILE_SOFT']) delete process.env[k];
   Object.assign(process.env, env);
   const ctx: { res?: { status: number; headers: Record<string, string>; body: any } } = {};
   try {
@@ -64,4 +64,26 @@ test('join: CORS only for the page and the app', async () => {
   assert.equal((await call(open, q)).headers['access-control-allow-origin'], 'https://live.videodromm.com');
   assert.equal((await call(open, q, 'https://evil.example')).headers['access-control-allow-origin'], undefined);
   assert.equal((await call(open, q, 'capacitor://localhost')).headers['access-control-allow-origin'], 'capacitor://localhost');
+});
+
+test('join: Turnstile checked when its secret is set (Cloudflare mocked)', async () => {
+  const open = { ...BASE, SHOW_FORCE: 'open', TURNSTILE_SECRET: 'secret' };
+  const q = { id: 'phone-abc-123', k: 'lune42' };
+  const realFetch = globalThis.fetch;
+  let answer: 'yes' | 'no' | 'down' = 'yes';
+  globalThis.fetch = (async () => {
+    if (answer === 'down') throw new Error('unreachable');
+    return new Response(JSON.stringify({ success: answer === 'yes' }), { status: 200 });
+  }) as typeof fetch;
+  try {
+    assert.equal((await call(open, q)).body.captcha, true); // no token at all
+    assert.equal((await call(open, { ...q, t: 'tok' })).status, 200);
+    answer = 'no';
+    assert.equal((await call(open, { ...q, t: 'tok' })).body.captcha, true);
+    answer = 'down';
+    assert.equal((await call(open, { ...q, t: 'tok' })).status, 403);
+    assert.equal((await call({ ...open, TURNSTILE_SOFT: '1' }, { ...q, t: 'tok' })).status, 200);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });
