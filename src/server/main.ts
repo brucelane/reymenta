@@ -39,7 +39,7 @@ function tswsToken(): string {
 const log = (s: string) => console.log(`${new Date().toISOString().slice(11, 19)} ${s}`);
 const room = new Room();
 if (process.env.MODE) room.mode = process.env.MODE;
-const cinder = connectCinder(TSWS_URL, tswsToken(), log);
+const cinder = connectCinder(TSWS_URL, tswsToken(), log, (folder) => onCinderFolder(folder));
 const sockets = new Map<string, WebSocket>(); // phone id -> its socket (LAN phones)
 
 // reymenta/.env: KEY=value lines (process.env wins)
@@ -78,6 +78,7 @@ const cloud = setting('PUBSUB_CONNECTION_STRING')
       if (++r.n > 20) return;
       const msg = parsePhoneMessage(raw);
       if (!msg || (msg.t === 'hello' && msg.id !== userId)) return;
+      if (msg.t === 'emo' && !emojisOn()) return;
       if (msg.t === 'hello') cloudPhones.add(userId);
       deliver(room.receive(userId, msg, now));
     }, log)
@@ -85,10 +86,50 @@ const cloud = setting('PUBSUB_CONNECTION_STRING')
 
 function deliver(out: Outgoing[]) {
   for (const { id, msg } of out) {
-    const ws = sockets.get(id);
-    if (ws && ws.readyState === ws.OPEN) ws.send(JSON.stringify(msg));
-    else if (cloud && cloudPhones.has(id)) cloud.send(id, msg);
+    const send = (m: unknown) => {
+      const ws = sockets.get(id);
+      if (ws && ws.readyState === ws.OPEN) ws.send(JSON.stringify(m));
+      else if (cloud && cloudPhones.has(id)) cloud.send(id, m);
+    };
+    send(msg);
+    if (msg.t === 'welcome') send({ t: 'emojis', on: emojisOn() }); // a phone that joins learns the row's state
   }
+}
+
+// The emoji row on the phones (2026-11-17): hidden until the track Cinder plays opens it ("audienceEmojis": true
+// in assets/glsl/<folder>/track.json), or the operator forces it (POST /admin/emojis/on|off|auto, Show-Access.ps1).
+// Emoji taps are ignored while it's hidden.
+const assetsGlsl = join(here, '..', '..', '..', 'assets', 'glsl');
+let emojiMode: 'auto' | 'on' | 'off' = 'auto';
+let trackEmojis = false;
+let cinderFolderName = '';
+const emojisOn = () => emojiMode === 'on' || (emojiMode === 'auto' && trackEmojis);
+
+function broadcastEmojis(before: boolean) {
+  const on = emojisOn();
+  if (on === before) return;
+  const msg = { t: 'emojis', on };
+  for (const ws of sockets.values()) if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(msg));
+  cloud?.broadcast(msg);
+  log(`emoji row ${on ? 'SHOWN' : 'hidden'} (${emojiMode === 'auto' ? `track ${cinderFolderName || '?'}` : `forced ${emojiMode}`})`);
+}
+
+function onCinderFolder(folder: string) {
+  if (folder === cinderFolderName) return;
+  cinderFolderName = folder;
+  const before = emojisOn();
+  try {
+    trackEmojis = JSON.parse(readFileSync(join(assetsGlsl, folder, 'track.json'), 'utf8')).audienceEmojis === true;
+  } catch {
+    trackEmojis = false; // no track.json: no emojis
+  }
+  broadcastEmojis(before);
+}
+
+function setEmojiMode(mode: 'auto' | 'on' | 'off') {
+  const before = emojisOn();
+  emojiMode = mode;
+  broadcastEmojis(before);
 }
 
 /** Closes the show: everyone out of the room, LAN sockets closed, cloud phones disconnected. */
@@ -114,13 +155,15 @@ const ADMIN_TOKEN = tswsToken();
 
 const http = createServer((req, res) => {
   // admin (Show-Access.ps1): this PC only, with TSWebsocketServer's token when it has one
-  if (req.url === '/admin/open' || req.url === '/admin/close') {
+  const emojiCmd = /^\/admin\/emojis\/(on|off|auto)$/.exec(req.url ?? '');
+  if (req.url === '/admin/open' || req.url === '/admin/close' || emojiCmd) {
     if (req.method !== 'POST' || !isLocal(req.socket.remoteAddress) || (ADMIN_TOKEN && req.headers['x-token'] !== ADMIN_TOKEN)) {
       res.writeHead(403).end();
       return;
     }
     const done = (body: unknown) => { res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
-    if (req.url === '/admin/open') { showOpen = true; kicked.clear(); log('show OPEN'); done({ open: true }); }
+    if (emojiCmd) { setEmojiMode(emojiCmd[1] as 'auto' | 'on' | 'off'); done({ emojis: emojisOn(), mode: emojiMode, track: cinderFolderName }); }
+    else if (req.url === '/admin/open') { showOpen = true; kicked.clear(); log('show OPEN'); done({ open: true }); }
     else void closeShow().then((cloudResult) => done({ open: false, cloud: cloudResult }));
     return;
   }
@@ -133,7 +176,7 @@ const http = createServer((req, res) => {
   if (req.url === '/status') {
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({
-      open: showOpen, count: room.count, mode: room.mode, cinder: cinder.connected, cloud: cloud ? cloud.link.connected : 'off',
+      open: showOpen, emojis: { on: emojisOn(), mode: emojiMode, track: cinderFolderName, trackOpens: trackEmojis }, count: room.count, mode: room.mode, cinder: cinder.connected, cloud: cloud ? cloud.link.connected : 'off',
       room: ROOM_NAME, cloudPhones: cloudPhones.size,
       aggregates: room.aggregates(Date.now()).slice(0, 16).map((v) => Math.round(v * 1000) / 1000),
     }));
@@ -155,6 +198,7 @@ wss.on('connection', (ws) => {
     if (!showOpen) { ws.close(); return; }
     const msg = parsePhoneMessage(data.toString());
     if (!msg) return;
+    if (msg.t === 'emo' && !emojisOn()) return;
     if (msg.t === 'hello') {
       if (id && id !== msg.id) return; // one identity per socket
       const old = sockets.get(msg.id);

@@ -1,6 +1,7 @@
 // The link to Cinder: a websocket client of TSWebsocketServer, as the WebApp is (app=mid). Uniforms go out as
 // {"params":[{"name":<index>,"value":<float>}]}, which TSWebsocketServer relays to Cinder (and the WebApp).
-// Everything TSWebsocketServer broadcasts back is ignored. Reconnects every 3 s.
+// From what TSWebsocketServer broadcasts back, only Cinder's folder is read (the track it plays, for the emoji
+// row, 2026-11-17). Reconnects every 3 s.
 
 import WebSocket from 'ws';
 
@@ -11,7 +12,16 @@ export interface CinderLink {
   close(): void;
 }
 
-export function connectCinder(url: string, token: string, log: (s: string) => void): CinderLink {
+/** The folder Cinder has loaded, from its folder announcements and its transport state (every 3 s). */
+function cinderFolder(raw: string): string | undefined {
+  let m: { event?: string; from?: string; message?: unknown; folder?: unknown };
+  try { m = JSON.parse(raw); } catch { return undefined; }
+  if (m.from !== 'cinder') return undefined;
+  const name = m.event === 'folder' ? m.message : m.event === 'transport' && m.message === 'state' ? m.folder : undefined;
+  return typeof name === 'string' && /^[A-Za-z0-9 _.-]{1,64}$/.test(name) && !name.includes('..') ? name : undefined;
+}
+
+export function connectCinder(url: string, token: string, log: (s: string) => void, onFolder?: (folder: string) => void): CinderLink {
   let ws: WebSocket | undefined;
   let connected = false;
   let closed = false;
@@ -23,7 +33,12 @@ export function connectCinder(url: string, token: string, log: (s: string) => vo
     if (closed) return;
     ws = new WebSocket(full);
     ws.on('open', () => { connected = true; log(`TSWebsocketServer connected (${shown})`); });
-    ws.on('message', () => { /* not for us */ });
+    // only Cinder's folder is read (to know which track plays); everything else is ignored
+    ws.on('message', (data) => {
+      if (!onFolder) return;
+      const folder = cinderFolder(data.toString());
+      if (folder) onFolder(folder);
+    });
     ws.on('close', () => {
       if (connected) log('TSWebsocketServer disconnected');
       connected = false;

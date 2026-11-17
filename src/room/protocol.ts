@@ -25,7 +25,9 @@ export type ServerMessage =
   /** the room is full (cap reached) */
   | { t: 'full' }
   /** the server doesn't know this phone (it timed out, or the server restarted): say hello again */
-  | { t: 'rejoin' };
+  | { t: 'rejoin' }
+  /** the emoji row shown or hidden (2026-11-17): on when the track Cinder plays opens it, or the operator does */
+  | { t: 'emojis'; on: boolean };
 
 /** The fixed emoji list: the phone sends an index, never text. */
 export const EMOJIS = ['🔥', '😍', '🤯', '👏', '🚀', '🌀', '💜', '🎛️'] as const;

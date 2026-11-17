@@ -15,6 +15,8 @@ export function App() {
   const [full, setFull] = useState(false);
   const [sensors, setSensors] = useState(true);
   const [code, setCode] = useState(showCode);
+  // the emoji row: hidden until the track playing opens it (the server says so, 2026-11-17); ?demo always shows it
+  const [emojis, setEmojis] = useState(demoMotion);
   const conn = useRef<Connection | undefined>(undefined);
   const motion = useRef<Motion>({ tx: 0, ty: 0, sh: 0 });
   const touch = useRef({ to: 0 as 0 | 1, px: 0.5, py: 0.5 });
@@ -59,6 +61,8 @@ export function App() {
           setMe((m) => (m ? { ...m, slot: msg.slot, x: msg.x, y: msg.y, count: msg.count } : m));
         } else if (msg.t === 'full') {
           setFull(true);
+        } else if (msg.t === 'emojis') {
+          setEmojis(msg.on);
         }
       },
       setStatus,
@@ -176,11 +180,11 @@ export function App() {
         />
         <p className="hint">{t.hint}</p>
       </div>
-      <nav className="emojis">
+      {emojis && <nav className="emojis">
         {EMOJIS.map((e, i) => (
           <button key={e} onClick={() => { conn.current?.send({ t: 'emo', e: i }); navigator.vibrate?.(15); }}>{e}</button>
         ))}
-      </nav>
+      </nav>}
     </main>
   );
 }

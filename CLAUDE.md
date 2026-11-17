@@ -80,9 +80,17 @@ room's tilt/shake/touch/emoji into Cinder uniforms `iAud0..iAud31` (260..291). O
 - 2026-11-17: the accelerometer fallback for tilt/shake confirmed on the user's old phone.
 - 2026-11-17: **emojis on screen.** `iAud9..15` = 😍 🤯 👏 🚀 🌀 💜 🎛️ each on its own (`AUD.each`): every tap adds
   1/`EMOJI_SLOTS` (12), fading with `EMOJI_FADE_MS` (2.5 s, gone after ~7 s); 🔥 stays on `iAud5`. Shader
-  `assets/audience-emojis.glsl` (at the assets root, next to mixette/post: Cinder finds it from any folder) draws
+  `assets/glsl/audiencetest/audience-emojis.glsl` (moved there the same day; the Reymenta folders name it `glsl/audiencetest/audience-emojis.glsl`, which Cinder resolves from the assets root) draws
   one emoji per tap rising like a bubble, from `assets/images/emoji-atlas.png` (`pnpm emoji-atlas`: Noto Emoji
   2D/png/128, Apache 2.0, notice in `emoji-atlas.LICENSE.txt`). Each Reymenta folder has it as its last fbo
   (`fbo8.json` = `iWeight8`; `sky`: `fbo7.json` = `iWeight7`): hidden until that weight is raised (Cinder doesn't
   even render an fbo at weight 0). Also `audiencetest/fbo2.json`. `/status` shows 16 values. Tests 15/15; 10 fake
   phones: values rise per tap and fall back to 0 after they leave. Not seen in Cinder yet.
+- 2026-11-17: **the emoji row is hidden until a track opens it.** A track opens it with `"audienceEmojis": true` in
+  its `track.json` (set on `audiencetest` only; the Reymenta tracks are off until you add the line). The audience
+  server reads Cinder's folder from what TSWebsocketServer relays (folder announcements, transport state:
+  `cinder.ts` `onFolder`), then sends `{t:"emojis", on}` to every phone (LAN sockets; cloud: sendToGroup on the
+  room's "out" group) and with each welcome; emoji taps are ignored while hidden. Operator override:
+  `POST /admin/emojis/on|off|auto` = `live/Show-Access.ps1 emojis on|off|auto`; `/status` has `emojis`. Checked with
+  a stand-in Cinder (folder announcements) and a test phone: hidden on join, shown on audiencetest, hidden on polo.
+  The emoji shader moved into `assets/glsl/audiencetest/audience-emojis.glsl`.

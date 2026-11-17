@@ -13,7 +13,7 @@ export function connectCloud(
   room: string,
   onPhoneMessage: (userId: string, raw: string) => void,
   log: (s: string) => void,
-): { link: CloudLink; send: (userId: string, msg: unknown) => void; kickUser: (userId: string) => Promise<boolean>; kickRoom: () => Promise<boolean> } | undefined {
+): { link: CloudLink; send: (userId: string, msg: unknown) => void; broadcast: (msg: unknown) => void; kickUser: (userId: string) => Promise<boolean>; kickRoom: () => Promise<boolean> } | undefined {
   const ps: PubSub | undefined = parseConnectionString(connectionString);
   if (!ps) { log('cloud: PUBSUB_CONNECTION_STRING unreadable, cloud off'); return undefined; }
   let ws: WebSocket | undefined;
@@ -51,6 +51,10 @@ export function connectCloud(
   return {
     link: { close() { closed = true; ws?.close(); }, get connected() { return connected; } },
     send: (userId, msg) => { void sendToUser(ps, userId, msg); },
+    // one message for every phone of the room: their "out" group (this server may send there, serverRoles)
+    broadcast: (msg) => {
+      if (connected && ws) ws.send(JSON.stringify({ type: 'sendToGroup', group: groupOut(room), dataType: 'json', data: msg, ackId: ackId++ }));
+    },
     // phones join "out-<room>" when they connect; this server only joins "in-<room>", so closing "out" spares it
     kickUser: (userId) => closeConnections(ps, { user: userId }),
     kickRoom: () => closeConnections(ps, { group: groupOut(room) }),
