@@ -49,3 +49,12 @@ room's tilt/shake/touch/emoji into Cinder uniforms `iAud0..iAud31` (260..291). O
   (9/9); both audiencetest shaders compile in WebGL2 (`pnpm glsl-check`). Tried with 2 phones (an iPhone through
   live.videodromm.com, the Android app on the LAN). Note: stopping a background `npx tsx` leaves its node child
   holding port 5191 (EADDRINUSE on restart): stop the node process itself.
+- 2026-11-17: **the gate on `/api/join`** (`studies/show-access.md`): a token only inside the show window and with
+  the show's code. SWA application settings: `SHOW_CODE` (required: without it every join answers 503),
+  `SHOW_ROOM` (default reymenta, the only room accepted), `SHOW_OPEN_FROM`/`SHOW_OPEN_UNTIL` (ISO with offset;
+  tokens end at UNTIL), `SHOW_FORCE` open|closed, `JOIN_ORIGINS`. CORS only for live.videodromm.com, the SWA's
+  default address and the app's origins. The page reads `?k=` from the QR, keeps it (`reymenta:k`), removes it
+  from the address bar, shows "the room opens at…" (retries every 30 s) or a code field (numeric) on 403.
+  `pnpm show-qr [code]` makes a 6-digit code and `assets/images/reymenta-qr-show.png` (QR + the code written
+  under it; git-ignored, the assets repo is public), shown by `assets/glsl/reymentaqr`. Tests `test/join.test.ts`
+  (13/13 with the others). The LAN path (phones on the show Wi-Fi to the local audience server) has no gate.

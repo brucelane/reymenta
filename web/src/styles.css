@@ -47,3 +47,8 @@ button:active { background: #22222b; }
 
 .emojis { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
 .emojis button { font-size: 22px; padding: 8px 0; }
+/* the show's code, when the link didn't carry it (studies/show-access.md) */
+.code { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 13px; color: var(--dim); }
+.code label { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.code input { font: inherit; font-size: 18px; letter-spacing: 0.1em; color: var(--text); background: #15151b; border: 1px solid #2a2a33; border-radius: 10px; padding: 10px 12px; width: 200px; text-align: center; }
+.code button { font: inherit; font-size: 15px; color: var(--text); background: #2a2a40; border: 0; border-radius: 10px; padding: 8px 22px; }

@@ -5,11 +5,14 @@
 
 import type { PhoneMessage, ServerMessage } from '../../src/room/protocol';
 
-export type Status = 'connecting' | 'open' | 'closed';
+// 'gate-closed': the show isn't open (outside its window); 'gate-code': the show's code is missing or wrong
+export type Status = 'connecting' | 'open' | 'closed' | 'gate-closed' | 'gate-code';
 
 export interface Connection {
   send(msg: PhoneMessage): void;
   close(): void;
+  /** try again now (after the show's code was typed) */
+  retryNow(): void;
 }
 
 /** True inside the Capacitor app. */
@@ -51,6 +54,27 @@ const params = new URLSearchParams(location.search);
 export const roomName = (params.get('room') ?? 'reymenta').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 24) || 'reymenta';
 const LAN_HOST = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1\]?$)|\.local$/;
 
+// The show's code (the gate on /api/join, studies/show-access.md): ?k= in the projected QR code, kept on the
+// phone for reloads, and taken out of the address bar so a screenshot or a shared link doesn't carry it.
+const CODE_KEY = 'reymenta:k';
+export function showCode(): string {
+  try { return localStorage.getItem(CODE_KEY) ?? ''; } catch { return ''; }
+}
+export function saveShowCode(code: string) {
+  try { localStorage.setItem(CODE_KEY, code.trim()); } catch { /* storage blocked */ }
+}
+{
+  const k = params.get('k');
+  if (k) {
+    saveShowCode(k);
+    params.delete('k');
+    const rest = params.toString();
+    history.replaceState(null, '', `${location.pathname}${rest ? `?${rest}` : ''}${location.hash}`);
+  }
+}
+/** When the gate said the show opens (ISO date), for the page's message. */
+export let gateOpensAt = '';
+
 /** Where /api/join lives: the page's own site, in the app the public site (?join= or reymenta:join overrides it). */
 function joinBase(): string {
   let saved = '';
@@ -91,16 +115,24 @@ export function connect(
     ? JSON.stringify({ type: 'sendToGroup', group: groupIn, dataType: 'json', data: msg, noEcho: true })
     : JSON.stringify(msg);
 
+  class GateError extends Error { constructor(public status: 'gate-closed' | 'gate-code') { super(status); } }
+
   const address = async (): Promise<string> => {
     if (!cloud) return serverUrl();
-    const res = await fetch(`${joinBase()}/api/join?id=${encodeURIComponent(phone)}&room=${roomName}`, { cache: 'no-store' });
+    const res = await fetch(`${joinBase()}/api/join?id=${encodeURIComponent(phone)}&room=${roomName}&k=${encodeURIComponent(showCode())}`, { cache: 'no-store' });
+    if (res.status === 403) {
+      const body = await res.json().catch(() => ({}));
+      gateOpensAt = typeof body.opensAt === 'string' ? body.opensAt : '';
+      throw new GateError(body.code ? 'gate-code' : 'gate-closed');
+    }
+    if (res.status === 503) throw new GateError('gate-closed'); // the show isn't set up online
     if (!res.ok) throw new Error(`join ${res.status}`);
     return (await res.json()).url as string;
   };
 
-  const retry = () => {
+  const retry = (wait = delay) => {
     if (closed) return;
-    setTimeout(open, delay);
+    setTimeout(open, wait);
     delay = Math.min(delay * 2, 10000);
   };
 
@@ -108,7 +140,15 @@ export function connect(
     if (closed) return;
     onStatus('connecting');
     let url: string;
-    try { url = await address(); } catch { onStatus('closed'); retry(); return; }
+    try { url = await address(); } catch (e) {
+      if (e instanceof GateError) {
+        onStatus(e.status);
+        // closed: ask again every 30 s (the window opens by itself); a code problem waits for the person
+        if (e.status === 'gate-closed') retry(30000);
+        return;
+      }
+      onStatus('closed'); retry(); return;
+    }
     ws = cloud ? new WebSocket(url, 'json.webpubsub.azure.v1') : new WebSocket(url);
     ws.onopen = () => {
       delay = 1000;
@@ -156,5 +196,5 @@ export function connect(
   document.addEventListener('visibilitychange', onVisible);
 
   void open();
-  return { send, close() { closed = true; document.removeEventListener('visibilitychange', onVisible); ws?.close(); } };
+  return { send, retryNow() { if (!ws || ws.readyState > 1) { delay = 1000; open(); } }, close() { closed = true; document.removeEventListener('visibilitychange', onVisible); ws?.close(); } };
 }

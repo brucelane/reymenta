@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { EMOJIS, type ServerMessage } from '../../src/room/protocol';
-import { connect, isNativeApp, phoneId, savedServer, saveServer, type Connection, type Status } from './connection';
+import { connect, gateOpensAt, isNativeApp, phoneId, savedServer, saveServer, saveShowCode, showCode, type Connection, type Status } from './connection';
 import { discoverServer } from './discovery';
 import { initialLang, saveLang, texts, type Lang } from './i18n';
 import { demoMotion, requestMotionPermission, startMotion, type Motion } from './sensors';
@@ -14,6 +14,7 @@ export function App() {
   const [me, setMe] = useState<Me | undefined>();
   const [full, setFull] = useState(false);
   const [sensors, setSensors] = useState(true);
+  const [code, setCode] = useState(showCode);
   const conn = useRef<Connection | undefined>(undefined);
   const motion = useRef<Motion>({ tx: 0, ty: 0, sh: 0 });
   const touch = useRef({ to: 0 as 0 | 1, px: 0.5, py: 0.5 });
@@ -142,6 +143,17 @@ export function App() {
         {status !== 'open' && me && <span className="warn">{t.reconnecting}</span>}
       </header>
       {full && <p className="warn">{t.full}</p>}
+      {status === 'gate-closed' && !me && (
+        <p className="warn">{gateOpensAt ? t.gateOpensAt(new Date(gateOpensAt).toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' })) : t.gateClosed}</p>
+      )}
+      {status === 'gate-code' && (
+        <form className="code" onSubmit={(e) => { e.preventDefault(); saveShowCode(code); conn.current?.retryNow(); }}>
+          <label>{t.gateCode}
+            <input value={code} onChange={(e) => setCode(e.target.value)} autoCapitalize="none" autoCorrect="off" spellCheck={false} maxLength={12} inputMode="numeric" />
+          </label>
+          <button type="submit">{t.codeOk}</button>
+        </form>
+      )}
       {!sensors && <p className="warn">{t.sensorsOff}</p>}
       <div
         className="pad"
