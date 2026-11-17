@@ -73,3 +73,7 @@ room's tilt/shake/touch/emoji into Cinder uniforms `iAud0..iAud31` (260..291). O
   slot had `id="turnstile"`, which made `window.turnstile` the div (browsers' named access), so joining never
   started; now `#cf-turnstile-slot` and the API checked by `render` being a function (6.11.17.4). Don't give an
   element an id that matches a global a script expects.
+- 2026-11-17: tilt didn't work on an old phone: tilt and shake now fall back to the accelerometer's gravity vector
+  (`accelerationIncludingGravity`) when the orientation event (gyroscope) doesn't come for a second, or the linear
+  acceleration is missing (`web/src/sensors.ts`); `?debug` shows the source (gyro / accel / none) and the values.
+  Permission check accepts a phone with DeviceMotionEvent only. Not tried on that phone yet.

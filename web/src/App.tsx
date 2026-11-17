@@ -3,7 +3,7 @@ import { EMOJIS, type ServerMessage } from '../../src/room/protocol';
 import { connect, gateOpensAt, isNativeApp, phoneId, savedServer, saveServer, saveShowCode, showCode, type Connection, type Status } from './connection';
 import { discoverServer } from './discovery';
 import { initialLang, saveLang, texts, type Lang } from './i18n';
-import { demoMotion, requestMotionPermission, startMotion, type Motion } from './sensors';
+import { debugSensors, demoMotion, requestMotionPermission, startMotion, type Motion } from './sensors';
 
 interface Me { slot: number; x: number; y: number; count: number; name: { fr: string; en: string }; hue: number }
 
@@ -158,6 +158,7 @@ export function App() {
         </form>
       )}
       {!sensors && <p className="warn">{t.sensorsOff}</p>}
+      {debugSensors && <p className="small">sensor {m.src ?? '?'} · tilt {m.tx.toFixed(2)} {m.ty.toFixed(2)} · shake {m.sh.toFixed(2)}</p>}
       <div
         className="pad"
         onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); onPointer(e, true); }}
