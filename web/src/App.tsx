@@ -148,7 +148,7 @@ export function App() {
       )}
       {status === 'gate-captcha' && <p className="warn">{t.gateCaptcha}</p>}
       {/* Cloudflare Turnstile's checkbox, shown only when it needs the person (web/src/turnstile.ts) */}
-      <div id="turnstile" className="turnstile" />
+      <div id="cf-turnstile-slot" className="turnstile" />
       {status === 'gate-code' && (
         <form className="code" onSubmit={(e) => { e.preventDefault(); saveShowCode(code); conn.current?.retryNow(); }}>
           <label>{t.gateCode}
