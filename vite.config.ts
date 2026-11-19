@@ -12,9 +12,13 @@ import basicSsl from '@vitejs/plugin-basic-ssl';
 // `pnpm build` writes dist/ for the SWA.
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode, command }) => ({
   root: 'web',
-  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
+  // hydra-synth reads Node's `global`: the build handles it, the dev server doesn't ("global is not defined" when the
+  // Workshop loaded under `pnpm dev`, 2026-11-19), so it's mapped to globalThis there only
+  define: { __APP_VERSION__: JSON.stringify(pkg.version), ...(command === 'serve' ? { global: 'globalThis' } : {}) },
+  // the same for the dependencies the dev server pre-bundles with esbuild (hydra-synth is one)
+  optimizeDeps: { esbuildOptions: { define: { global: 'globalThis' } } },
   base: './',
   // the Workshop's Ableton template (web/src/workshop/als/empty.als, 12 KB), imported by ExportSection (step 6) and
   // inlined (build.assetsInlineLimit) into its own lazy chunk: one file less to serve (the SWA knows no .als type)

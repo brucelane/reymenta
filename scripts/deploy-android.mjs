@@ -39,7 +39,9 @@ if (!skipBuild) run('pnpm', ['build']);
 run('npx', ['cap', 'sync', 'android']);
 
 const android = join(root, 'android');
-const gradlew = win ? 'gradlew.bat' : './gradlew';
+// the full path: cmd may not look in the current folder (NoDefaultCurrentDirectoryInExePath), so a bare gradlew.bat
+// wasn't found (2026-11-19); quoted for paths with spaces
+const gradlew = win ? `"${join(android, 'gradlew.bat')}"` : './gradlew';
 if (release) {
   if (!existsSync(join(android, 'keystore.properties'))) console.warn('no android/keystore.properties: the bundle will not be signed with the upload key');
   run(gradlew, ['bundleRelease'], android, env);
