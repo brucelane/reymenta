@@ -123,3 +123,18 @@
 .ws-check { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 6px 0; }
 .ws-flow { width: 100%; height: 70vh; border: 1px solid #2a2a33; border-radius: 10px; background: #fff; }
 .ws-groove-code { display: block; width: 100%; box-sizing: border-box; margin-top: 4px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; background: #15151b; color: inherit; border: 1px solid #2a2a33; border-radius: 10px; padding: 8px; }
+/* Hydra on a phone: the toolbar stays in view, a Live switch, the extra-keys row above the keyboard */
+.ws-hydra-bar { position: sticky; top: 0; z-index: 5; padding: 6px 0; background: var(--bg, #0b0b10); }
+.ws-hydra-bar button { touch-action: manipulation; }
+.ws-hydra-live { display: inline-flex; align-items: center; gap: 8px; }
+.ws-hydra-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid currentColor; box-sizing: border-box; }
+.ws-hydra-live.on .ws-hydra-dot { background: #e0245e; border-color: #e0245e; box-shadow: 0 0 6px #e0245e; }
+.ws-hydra-keys { position: fixed; left: 0; right: 0; z-index: 50; display: flex; gap: 4px; padding: 4px; background: rgba(20, 20, 26, 0.96); border-top: 1px solid #2a2a33; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.ws-hydra-keys button { flex: none; min-width: 44px; min-height: 44px; padding: 0 8px; font: 18px ui-monospace, Menlo, Consolas, monospace; touch-action: manipulation; }
+.ws-hydra-keys .ws-hydra-step { min-width: 52px; font-size: 22px; font-weight: 700; touch-action: none; }
+.ws-hydra-keys-scroll { display: flex; gap: 4px; overflow-x: auto; flex: 1; scrollbar-width: none; }
+.ws-hydra-keys-scroll::-webkit-scrollbar { display: none; }
+.ws-hydra-code .cm-activeLine.cm-hydra-error { background: rgba(220, 40, 40, 0.45) !important; }
+.ws-hydra-keys { flex-wrap: wrap; }
+.ws-hydra-keys-error { flex-basis: 100%; margin: 0; padding: 2px 6px; font-size: 13px; color: #fff; background: rgba(160, 20, 20, 0.9); border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ws-hydra-keys .ws-hydra-keys-scroll { flex: 1 1 0; min-width: 0; }

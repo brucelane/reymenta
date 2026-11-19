@@ -7,7 +7,7 @@ const TEXTS = {
   fr: {
     tagline: 'Jouez avec le set depuis votre téléphone',
     join: 'Rejoindre le show',
-    workshop: 'Atelier : setlists, tablatures, manche (hors ligne)',
+    workshop: 'Atelier : setlists, tablatures, fretboard (hors ligne)',
     server: 'Serveur (adresse du PC du show)',
     search: { searching: 'Recherche du serveur sur le Wi-Fi…', found: 'Serveur trouvé', notfound: 'Pas de serveur sur ce Wi-Fi : connexion par internet (ou tapez son adresse)' },
     joining: 'Connexion…',

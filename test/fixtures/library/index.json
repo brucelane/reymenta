@@ -9,7 +9,7 @@
       "logo": "artists/batchass.png" },
     { "id": "Bad Id", "name": "x" }
   ],
-  "about": { "title": "Sophia Digital Art", "text": { "fr": "asso", "en": "association" }, "links": [], "logo": "../secret.png" },
+  "about": { "title": "Sophia Digital Art", "text": { "fr": "société", "en": "company" }, "links": [], "logo": "../secret.png" },
   "setlists": [{ "name": "demo", "title": "Demo", "project": "BL", "tracks": [{ "title": "Demo song", "folder": "demo" }] }],
   "tracks": [
     { "id": "demo", "project": "BL", "title": "Demo song", "folder": "demo", "tonality": "E", "mode": "minor", "bpm": 120, "artist": "batchass", "tab": "tabs/demo.tab.json",

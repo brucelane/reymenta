@@ -1,6 +1,6 @@
 {
   "name": "reymenta",
-  "version": "6.11.19.7",
+  "version": "6.11.19.8",
   "private": true,
   "description": "Reymenta: the audience plays along with the AV set from their phones (live.videodromm.com)",
   "license": "AGPL-3.0-or-later",
@@ -15,11 +15,12 @@
     "emoji-atlas": "node scripts/emoji-atlas.mjs",
     "build": "tsc --noEmit && vite build",
     "buildandroid": "tsc --noEmit && vite build && npx cap sync android && npx cap open android",
-    "androidrelease": "tsc --noEmit && vite build && npx cap sync android && cd android && gradlew.bat bundleRelease",
     "androidassets": "npx @capacitor/assets generate --android --assetPath resources",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/*.test.ts",
-    "sync-core": "node scripts/sync-core.mjs"
+    "sync-core": "node scripts/sync-core.mjs",
+    "deploy:android": "node scripts/deploy-android.mjs",
+    "deploy:android:release": "node scripts/deploy-android.mjs --release"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.2",

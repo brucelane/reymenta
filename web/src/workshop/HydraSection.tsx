@@ -7,6 +7,10 @@
 // Code is JavaScript: nothing runs until the user presses Run (or one of the run keys), whatever its origin. Hydra and
 // its WebGL context are created on the first run and destroyed when the section closes; the drawing loop pauses
 // while the canvas is off screen or the page hidden. The microphone (Hydra's `a`) only after the Mic button.
+// On a phone (no Ctrl+Enter): a sticky toolbar (▶ All, ▶ Block, Hide, Live), the Live switch (the sketch re-run
+// ~500 ms after the last edit, the last working version kept on an error; only after a first explicit Run), and an
+// extra-keys row above the keyboard (brackets, quotes, digits, a ± stepper on the number under the cursor).
+// The logic of these is in hydraTouch.ts.
 import { useEffect, useRef, useState } from 'react';
 import { autocompletion, closeBrackets, closeBracketsKeymap, snippetCompletion, startCompletion, type CompletionContext } from '@codemirror/autocomplete';
 import { defaultKeymap, history, historyKeymap, indentWithTab, toggleComment } from '@codemirror/commands';
@@ -17,13 +21,17 @@ import { Decoration, EditorView, highlightActiveLine, keymap, lineNumbers, showT
 import Hydra from 'hydra-synth';
 import { hydraFileName, starterSketch, validateHydra } from './hydra';
 import { hintAt, hydraOptions } from './hydraComplete';
-import { blockAt, errorLine, run } from './hydraEval';
+import { blockAt, compile, errorLine, run } from './hydraEval';
 import { expand } from './hydraShortcuts';
+import { EXTRA_KEYS, LIVE_NUDGE_MS, LiveRunner, nudge, numberAt } from './hydraTouch';
 import { download } from './storage';
 import type { WTexts } from './texts';
 
 const SAVE_MS = 600;
 const OPACITY_KEY = 'reymenta:hydra:opacity';
+const LIVE_KEY = 'reymenta:hydra:live';
+/** a phone or a tablet: the toolbar and the extra keys matter there */
+const TOUCH_QUERY = '(pointer: coarse), (hover: none)';
 /** canvas pixels per CSS pixel, kept low for phones (Hydra's own editor uses 1) */
 const MAX_DPR = 1.5;
 const MAX_SIDE = 1920;
@@ -34,19 +42,28 @@ const silentAudio = () => ({
   setBins() {}, setSmooth() {}, setCutoff() {}, setScale() {}, setMax() {}, show() {}, hide() {}, onBeat() {}, tick() {},
 });
 
+const readLive = () => { try { return localStorage.getItem(LIVE_KEY) === '1'; } catch { return false; } };
+const isTouch = () => typeof matchMedia === 'function' && matchMedia(TOUCH_QUERY).matches;
+
 const readOpacity = () => { try { const v = Number(localStorage.getItem(OPACITY_KEY)); return v >= 0 && v <= 1 && localStorage.getItem(OPACITY_KEY) !== null ? v : 0.45; } catch { return 0.45; } };
 
 export default function HydraSection({ t, name, title, bpm, code, save }: {
   t: WTexts; name: string; title: string; bpm?: number; code: string | undefined; save: (code: string) => void;
 }) {
   const [text, setText] = useState(code ?? '');
-  const [error, setError] = useState<{ msg: string; line?: number } | undefined>();
+  const [error, setError] = useState<{ msg: string; line?: number; kept?: boolean } | undefined>();
   const [msg, setMsg] = useState('');
   const [ran, setRan] = useState(false);
   const [shown, setShown] = useState(true);
   const [opacity, setOpacity] = useState(readOpacity);
   const [mic, setMic] = useState<'off' | 'asking' | 'on'>('off');
   const [noGl, setNoGl] = useState(false);
+  const [live, setLive] = useState(readLive);
+  const [touch, setTouch] = useState(isTouch);
+  const [focused, setFocused] = useState(false);
+  const [onNumber, setOnNumber] = useState(false);
+  /** the next edit is a ± step: Live runs it sooner, like a knob */
+  const nudging = useRef(false);
   const stage = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const hydra = useRef<Hydra | null>(null);
@@ -69,9 +86,24 @@ export default function HydraSection({ t, name, title, bpm, code, save }: {
     return () => window.clearTimeout(timer);
   });
   useEffect(() => {
-    if (code !== undefined && code !== text && pending.current === undefined) setText(code);
+    // new code from outside (the catalogue, another tab): it waits for an explicit Run, Live included
+    if (code !== undefined && code !== text && pending.current === undefined) { liveRunner().disarm(); setRan(false); setText(code); }
   }, [code]); // eslint-disable-line react-hooks/exhaustive-deps
-  const edit = (v: string) => { setText(v); pending.current = v; setError(undefined); };
+  const edit = (v: string) => {
+    setText(v);
+    pending.current = v;
+    setError(undefined);
+    liveRunner().edit(v, nudging.current ? LIVE_NUDGE_MS : undefined);
+  };
+
+  useEffect(() => { try { localStorage.setItem(LIVE_KEY, live ? '1' : '0'); } catch { /* fine */ } liveRunner().setEnabled(live); }, [live]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (typeof matchMedia !== 'function') return;
+    const mq = matchMedia(TOUCH_QUERY);
+    const on = () => setTouch(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
 
   useEffect(() => { try { localStorage.setItem(OPACITY_KEY, String(opacity)); } catch { /* fine */ } }, [opacity]);
 
@@ -151,25 +183,47 @@ export default function HydraSection({ t, name, title, bpm, code, save }: {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ------------------------------------------------------------ running code
-  /** runs `code` (lines from..to of the editor, 0-based) */
-  const evaluate = async (codePart: string, fromLine: number) => {
+  const showError = async (e: unknown, codePart: string, fromLine: number, kept?: boolean) => {
+    const l = await errorLine(e, codePart.split('\n').length);
+    const line = l !== undefined ? fromLine + l : undefined;
+    setError({ msg: (e as Error)?.message ?? String(e), line, kept });
+    markError(editor.current, line ?? null);
+  };
+  /** runs `code` (lines from..to of the editor, 0-based); `all` = the whole sketch */
+  const evaluate = async (codePart: string, fromLine: number, all = false) => {
     const h = ensure();
     if (!h) return;
+    liveRunner().cancel();
     setRan(true);
     setMsg('');
     try {
       await run(codePart, h.synth);
+      liveRunner().arm(all ? codePart : undefined);
       setError(undefined);
       markError(editor.current, null);
       start();
     } catch (e) {
-      const l = await errorLine(e, codePart.split('\n').length);
-      const line = l !== undefined ? fromLine + l : undefined;
-      setError({ msg: (e as Error)?.message ?? String(e), line });
-      markError(editor.current, line ?? null);
+      liveRunner().arm();
+      await showError(e, codePart, fromLine);
     }
   };
-  const runAll = () => { const v = editor.current; const all = v ? v.state.doc.toString() : text; flashLines(v, 1, v?.state.doc.lines ?? 1); void evaluate(all, 0); };
+
+  // Live: the whole sketch again a moment after the last edit (hydraTouch.ts), only once the sketch was run by hand
+  const liveRef = useRef<LiveRunner | null>(null);
+  function liveRunner(): LiveRunner {
+    liveRef.current ??= new LiveRunner({
+      parse: (c) => { compile(c); },
+      run: async (c) => { const h = hydra.current; if (!h) throw new Error('Hydra'); await run(c, h.synth); },
+      onOk: () => { setError(undefined); markError(editor.current, null); start(); },
+      onError: (e, c, kept) => { void showError(e, c, 0, kept); },
+      setTimer: (fn, ms) => window.setTimeout(fn, ms),
+      clearTimer: (id) => window.clearTimeout(id as number),
+    });
+    return liveRef.current;
+  }
+  useEffect(() => () => liveRef.current?.disarm(), []);
+
+  const runAll = () => { const v = editor.current; const all = v ? v.state.doc.toString() : text; flashLines(v, 1, v?.state.doc.lines ?? 1); void evaluate(all, 0, true); };
   const runLine = (v: EditorView) => {
     const sel = v.state.selection.main;
     if (!sel.empty) {
@@ -190,6 +244,26 @@ export default function HydraSection({ t, name, title, bpm, code, save }: {
     void evaluate(lines.slice(b.from, b.to + 1).join('\n'), b.from);
     return true;
   };
+  /** ± on the number under the cursor (by its last decimal place) */
+  const step = (dir: 1 | -1) => {
+    const v = editor.current;
+    if (!v) return;
+    const sel = v.state.selection.main;
+    const line = v.state.doc.lineAt(sel.head);
+    const c = nudge(line.text, sel.head - line.from, dir);
+    if (!c) return;
+    const from = line.from + c.from;
+    nudging.current = true;
+    try {
+      v.dispatch({ changes: { from, to: line.from + c.to, insert: c.insert }, selection: { anchor: from + c.insert.length }, scrollIntoView: true, userEvent: 'input.nudge' });
+    } finally { nudging.current = false; }
+  };
+  const insertKey = (k: string) => {
+    const v = editor.current;
+    if (!v) return;
+    v.dispatch({ ...v.state.replaceSelection(k), scrollIntoView: true, userEvent: 'input.type' });
+  };
+
   const hush = () => { hydra.current?.hush(); setError(undefined); markError(editor.current, null); };
 
   // Ctrl+Shift+H anywhere while the section is open (the editor may be hidden)
@@ -240,6 +314,7 @@ export default function HydraSection({ t, name, title, bpm, code, save }: {
     const v = validateHydra(await file.text());
     if (typeof v !== 'string') return setMsg(t.patchRefused(v.error));
     pending.current = undefined;
+    liveRunner().disarm();
     setText(v);
     save(v);
     setRan(false);
@@ -259,11 +334,17 @@ export default function HydraSection({ t, name, title, bpm, code, save }: {
     );
   }
 
+  const errorText = error && `${error.line ? t.hydraErrorLine(error.line, error.msg) : t.evalError(error.msg)}${error.kept ? ` ${t.hydraLiveKept}` : ''}`;
   return (
     <div className="ws-hydra">
-      <div className="ws-hydra-bar">
-        <button className="ws-play" onClick={runAll} disabled={noGl}>{t.hydraRun}</button>
-        <button onClick={() => setShown((s) => !s)}>{shown ? t.hydraHide : t.hydraShow}</button>
+      <div className="ws-hydra-bar" onMouseDown={keepFocus}>
+        <button className="ws-play" onClick={runAll} disabled={noGl}>{t.hydraRunAll}</button>
+        <button className="ws-play" onClick={() => { if (editor.current) runBlock(editor.current); }} disabled={noGl || !shown}>{t.hydraRunBlock}</button>
+        <button onClick={() => setShown((s) => !s)} aria-pressed={!shown}>{shown ? t.hydraHide : t.hydraShow}</button>
+        <button role="switch" aria-checked={live} className={live ? 'on ws-hydra-live' : 'ws-hydra-live'} disabled={noGl || !ran}
+          title={ran ? t.hydraLiveTip : t.hydraLiveNeedsRun} onClick={() => setLive((l) => !l)}>
+          <span className="ws-hydra-dot" aria-hidden />{t.hydraLive}
+        </button>
         <button onClick={() => void toggleMic()} disabled={noGl || mic === 'asking'} aria-pressed={mic === 'on'} className={mic === 'on' ? 'on' : ''}>
           {mic === 'on' ? t.hydraMicStop : t.hydraMic}
         </button>
@@ -272,19 +353,79 @@ export default function HydraSection({ t, name, title, bpm, code, save }: {
       <div className="ws-hydra-stage" ref={stage}>
         <canvas ref={canvas} className="ws-hydra-canvas" />
         <div className="ws-hydra-code" style={{ display: shown ? undefined : 'none', ['--code-bg' as string]: `rgba(0, 0, 0, ${opacity})` }}>
-          <CodeEditor value={text} onChange={edit} viewRef={editor} onRunAll={runAll} onRunLine={runLine} onRunBlock={runBlock} />
+          <CodeEditor value={text} onChange={edit} viewRef={editor} onRunAll={runAll} onRunLine={runLine} onRunBlock={runBlock}
+            onFocus={setFocused} onCursor={setOnNumber} touch={touch} />
         </div>
-        {error && <p className="ws-hydra-error">{error.line ? t.hydraErrorLine(error.line, error.msg) : t.evalError(error.msg)}</p>}
+        {errorText && <p className="ws-hydra-error">{errorText}</p>}
       </div>
+      {touch && focused && shown && <ExtraKeys t={t} onKey={insertKey} onStep={step} canStep={onNumber} error={errorText} />}
       <label className="ws-hydra-opacity">{t.hydraOpacity}
         <input type="range" min={0} max={1} step={0.05} value={opacity} onChange={(e) => setOpacity(Number(e.target.value))} />
       </label>
       {!ran && <p className="ws-dim ws-small">{t.hydraNotRun}</p>}
       {msg && <p className="ws-msg">{msg}</p>}
-      <p className="ws-dim ws-small">{t.hydraKeys}</p>
+      <p className="ws-dim ws-small">{touch ? t.hydraKeysTouch : t.hydraKeys}</p>
       <div className="ws-actions">
         <button onClick={() => download(hydraFileName(name), text, 'text/javascript')}>{t.download} {hydraFileName(name)}</button>
         <HydraImport t={t} onFile={onImport} />
+      </div>
+    </div>
+  );
+}
+
+/** keeps the editor focused (and the phone keyboard up) when a toolbar or extra key is tapped */
+const keepFocus = (e: React.MouseEvent) => { if ((e.target as HTMLElement).closest('button')) e.preventDefault(); };
+
+/** how far the phone keyboard pushes up the bottom of the page (visual viewport), in CSS pixels */
+function useKeyboardInset(): number {
+  const [inset, setInset] = useState(0);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const on = () => setInset(Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)));
+    on();
+    vv.addEventListener('resize', on);
+    vv.addEventListener('scroll', on);
+    return () => { vv.removeEventListener('resize', on); vv.removeEventListener('scroll', on); };
+  }, []);
+  return inset;
+}
+
+/** − / + with a long press that repeats (first step at once, then after 400 ms every 70 ms) */
+function StepButton({ label, title, disabled, onStep }: { label: string; title: string; disabled: boolean; onStep: () => void }) {
+  const timer = useRef<{ t: number; i: number }>({ t: 0, i: 0 });
+  const stop = () => { window.clearTimeout(timer.current.t); window.clearInterval(timer.current.i); timer.current = { t: 0, i: 0 }; };
+  useEffect(() => stop, []);
+  useEffect(() => { if (disabled) stop(); }, [disabled]);
+  return (
+    <button className="ws-hydra-step" title={title} aria-label={title} disabled={disabled}
+      onPointerDown={(e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* fine */ }
+        stop();
+        onStep();
+        timer.current.t = window.setTimeout(() => { timer.current.i = window.setInterval(onStep, 70); }, 400);
+      }}
+      onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}
+      onClick={(e) => { if (e.detail === 0) onStep(); /* keyboard; a tap already stepped on pointerdown */ }}
+      onContextMenu={(e) => e.preventDefault()}>
+      {label}
+    </button>
+  );
+}
+
+/** The row above the phone keyboard: ± on the number under the cursor, then characters that are far on a phone. */
+function ExtraKeys({ t, onKey, onStep, canStep, error }: { t: WTexts; onKey: (k: string) => void; onStep: (dir: 1 | -1) => void; canStep: boolean; error?: string }) {
+  const inset = useKeyboardInset();
+  return (
+    <div className="ws-hydra-keys" style={{ bottom: inset }} onMouseDown={keepFocus} role="toolbar" aria-label={t.hydraExtraKeys}>
+      {/* the stage's error bar is under the keyboard: the message again, one line, above the keys */}
+      {error && <p className="ws-hydra-keys-error" role="status">{error}</p>}
+      <StepButton label="−" title={t.hydraStepDown} disabled={!canStep} onStep={() => onStep(-1)} />
+      <StepButton label="+" title={t.hydraStepUp} disabled={!canStep} onStep={() => onStep(1)} />
+      <div className="ws-hydra-keys-scroll">
+        {EXTRA_KEYS.map((k) => <button key={k} onClick={() => onKey(k)}>{k}</button>)}
       </div>
     </div>
   );
@@ -393,13 +534,15 @@ function hint(state: EditorState): readonly Tooltip[] {
 }
 
 /** CodeMirror 6 without the React wrapper (as StrudelSection): transparent over the canvas, Hydra's keys. */
-function CodeEditor({ value, onChange, viewRef, onRunAll, onRunLine, onRunBlock }: {
+function CodeEditor({ value, onChange, viewRef, onRunAll, onRunLine, onRunBlock, onFocus, onCursor, touch }: {
   value: string; onChange: (v: string) => void; viewRef: React.MutableRefObject<EditorView | null>;
   onRunAll: () => void; onRunLine: (v: EditorView) => boolean; onRunBlock: (v: EditorView) => boolean;
+  onFocus: (focused: boolean) => void; onCursor: (onNumber: boolean) => void; touch: boolean;
 }) {
   const host = useRef<HTMLDivElement>(null);
-  const handlers = useRef({ onChange, onRunAll, onRunLine, onRunBlock });
-  handlers.current = { onChange, onRunAll, onRunLine, onRunBlock };
+  const handlers = useRef({ onChange, onRunAll, onRunLine, onRunBlock, onFocus, onCursor });
+  handlers.current = { onChange, onRunAll, onRunLine, onRunBlock, onFocus, onCursor };
+  const blurTimer = useRef(0);
   useEffect(() => {
     const extensions: Extension[] = [
       lineNumbers(), history(), closeBrackets(), highlightActiveLine(), javascript(), oneDark,
@@ -414,7 +557,22 @@ function CodeEditor({ value, onChange, viewRef, onRunAll, onRunLine, onRunBlock 
       autocompletion({ override: [hydraSource], icons: false }),
       errorField, flashField, hintField,
       keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
-      EditorView.updateListener.of((u) => { if (u.docChanged) handlers.current.onChange(u.state.doc.toString()); }),
+      EditorView.updateListener.of((u) => {
+        if (u.docChanged) handlers.current.onChange(u.state.doc.toString());
+        if (u.docChanged || u.selectionSet) {
+          const head = u.state.selection.main.head;
+          const line = u.state.doc.lineAt(head);
+          handlers.current.onCursor(!!numberAt(line.text, head - line.from));
+        }
+        if (u.focusChanged) {
+          // a short delay on blur: a tap on the extra keys must not make them flicker away
+          window.clearTimeout(blurTimer.current);
+          if (u.view.hasFocus) handlers.current.onFocus(true);
+          else blurTimer.current = window.setTimeout(() => { if (!u.view.hasFocus) handlers.current.onFocus(false); }, 150);
+        }
+      }),
+      // the extra-keys row covers the bottom of the editor on a phone: keep the cursor above it
+      ...(touch ? [EditorView.scrollMargins.of(() => ({ bottom: 64 }))] : []),
       EditorView.theme({
         '&': { fontSize: '14px', height: '100%', backgroundColor: 'transparent' },
         '.cm-scroller': { overflow: 'auto', fontFamily: 'ui-monospace, Menlo, Consolas, monospace' },
@@ -429,7 +587,7 @@ function CodeEditor({ value, onChange, viewRef, onRunAll, onRunLine, onRunBlock 
     ];
     const v = new EditorView({ parent: host.current!, state: EditorState.create({ doc: value, extensions }) });
     viewRef.current = v;
-    return () => { v.destroy(); viewRef.current = null; };
+    return () => { window.clearTimeout(blurTimer.current); v.destroy(); viewRef.current = null; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const v = viewRef.current;
