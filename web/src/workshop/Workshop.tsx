@@ -20,11 +20,13 @@ import './workshop.css';
 
 // hydra-synth and its editor: only when a sketch opens (step 5)
 const HydraSection = lazy(() => import('./HydraSection'));
+// strudel-flow and pasted grooves (step 6)
+const GroovesScreen = lazy(() => import('./GroovesScreen'));
 
 type Screen =
   | { s: 'home' } | { s: 'setlists' } | { s: 'setlist'; name: string; pub?: boolean } | { s: 'tracks' }
   | { s: 'track'; folder: string } | { s: 'fretboard'; folder?: string } | { s: 'artists' } | { s: 'about' } | { s: 'data' }
-  | { s: 'sketches' } | { s: 'sketch'; id: string };
+  | { s: 'sketches' } | { s: 'sketch'; id: string } | { s: 'grooves' };
 
 const LAN_HOST = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
 const bundled = validateArtists(artistsJson);
@@ -129,6 +131,7 @@ export default function Workshop({ lang, langSwitch, onShow }: { lang: Lang; lan
           <button onClick={() => go({ s: 'tracks' })}>{t.tracks}</button>
           <button onClick={() => go({ s: 'fretboard' })}>{t.fretboard}</button>
           <button onClick={() => go({ s: 'sketches' })}>{t.sketches}</button>
+          <button onClick={() => go({ s: 'grooves' })}>{t.grooves}</button>
           <button onClick={() => go({ s: 'artists' })}>{t.artists}</button>
           <button onClick={() => go({ s: 'about' })}>{t.about}</button>
           <button onClick={() => go({ s: 'data' })}>{t.data}</button>
@@ -168,6 +171,13 @@ export default function Workshop({ lang, langSwitch, onShow }: { lang: Lang; lan
       break;
     case 'data':
       body = <DataScreen t={t} lib={lib} setLib={setLib} />;
+      break;
+    case 'grooves':
+      body = (
+        <Suspense fallback={<p className="ws-dim">{t.loading}</p>}>
+          <GroovesScreen t={t} lib={lib} setLib={setLib} openTrack={(folder) => go({ s: 'track', folder })} />
+        </Suspense>
+      );
       break;
     case 'sketches':
       body = <SketchesScreen t={t} lib={lib} update={update} open={(id) => go({ s: 'sketch', id })} />;
@@ -211,6 +221,7 @@ function screenTitle(s: Screen, t: WTexts, lib?: Library): string {
     case 'about': return t.about;
     case 'data': return t.data;
     case 'sketches': return t.sketches;
+    case 'grooves': return t.grooves;
     case 'sketch': return lib?.sketches.find((x) => x.id === s.id)?.title ?? s.id;
     default: return '';
   }

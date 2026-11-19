@@ -64,9 +64,14 @@ export function templatePatch(o: { title: string; bpm?: number; beatsPerBar?: nu
  * undefined when neither is found (the user adds it by hand).
  */
 export function addDrumsToPatch(patch: string, expression: string): string | undefined {
+  return addToPatch(patch, expression, 'drums');
+}
+
+/** addDrumsToPatch for any part: `const <base>` (or <base>2, <base>3...) added to the patch's last stack. */
+export function addToPatch(patch: string, expression: string, base: string): string | undefined {
   const lines = patch.replace(/\r\n/g, '\n').split('\n');
-  let name = 'drums';
-  for (let i = 2; new RegExp(`\\b(const|let|var)\\s+${name}\\b`).test(patch); i++) name = `drums${i}`;
+  let name = base;
+  for (let i = 2; new RegExp(`\\b(const|let|var)\\s+${name}\\b`).test(patch); i++) name = `${base}${i}`;
   const at = lines.map((l, i) => (/^stack\s*\(/.test(l) ? i : -1)).filter((i) => i >= 0).pop();
   if (at !== undefined) {
     const opened = lines[at].replace(/^stack\s*\(\s*/, (m) => `${m}${name}, `).replace(new RegExp(`${name}, \\)`), `${name})`);

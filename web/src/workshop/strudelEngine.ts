@@ -168,13 +168,13 @@ export function cycle(): number {
   try { return Math.max(0, getTime() + offset); } catch { return 0; }
 }
 
-interface QHap { whole?: { begin: { valueOf(): number } }; value: unknown; hasOnset(): boolean }
+interface QHap { whole?: { begin: { valueOf(): number }; end: { valueOf(): number } }; value: unknown; hasOnset(): boolean }
 
 /**
  * The haps a code gives over `cycles` bars, without playing it (what plays is stopped first: evaluating replaces the
- * scheduler's pattern). Onsets only, begin in cycles.
+ * scheduler's pattern). Onsets only, begin and end (the note's end, for the exports) in cycles.
  */
-export async function queryHaps(code: string, cycles: number): Promise<{ begin: number; value: Record<string, unknown> }[]> {
+export async function queryHaps(code: string, cycles: number): Promise<{ begin: number; end: number; value: Record<string, unknown> }[]> {
   stop();
   await initEngine();
   evalError = null;
@@ -188,5 +188,5 @@ export async function queryHaps(code: string, cycles: number): Promise<{ begin: 
   if (!pattern || typeof pattern.queryArc !== 'function') throw new Error('the code gives no pattern');
   return pattern.queryArc(0, cycles)
     .filter((h) => h.whole && h.hasOnset())
-    .map((h) => ({ begin: h.whole!.begin.valueOf(), value: (h.value && typeof h.value === 'object' ? h.value : { s: h.value }) as Record<string, unknown> }));
+    .map((h) => ({ begin: h.whole!.begin.valueOf(), end: h.whole!.end.valueOf(), value: (h.value && typeof h.value === 'object' ? h.value : { s: h.value }) as Record<string, unknown> }));
 }

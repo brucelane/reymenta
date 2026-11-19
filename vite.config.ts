@@ -16,6 +16,9 @@ export default defineConfig(({ mode }) => ({
   root: 'web',
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   base: './',
+  // the Workshop's Ableton template (web/src/workshop/als/empty.als, 12 KB), imported by ExportSection (step 6) and
+  // inlined (build.assetsInlineLimit) into its own lazy chunk: one file less to serve (the SWA knows no .als type)
+  assetsInclude: ['**/*.als'],
   plugins: mode === 'phone' ? [react(), basicSsl()] : [react()],
   server: {
     host: true,
@@ -27,6 +30,7 @@ export default defineConfig(({ mode }) => ({
     emptyOutDir: true,
     // the Workshop's Strudel chunk (engine + CodeMirror, ~1.1 MB, loaded only when a Strudel section opens): known
     chunkSizeWarningLimit: 1500,
+    assetsInlineLimit: (file: string) => (file.endsWith('.als') ? true : undefined),
     rollupOptions: {
       // Strudel's own packages (as in the WebApp's config): @strudel/web re-exports "logger"/"errorLogger" from two
       // packages (the duplicate is ignored), @strudel/soundfonts uses eval. Only those two, only from @strudel

@@ -77,6 +77,15 @@ room's tilt/shake/touch/emoji into Cinder uniforms `iAud0..iAud31` (260..291). O
   and `sketches: [{id, title, code}]`. Sizes gzip: Show 69.8 KB, Workshop 26.9 KB, Hydra 67.3 KB, CodeMirror 148.8 KB
   (shared with Strudel), Strudel 224.9 KB. Tests 46/46; headless Edge (SwiftShader WebGL) ran it; APK rebuilt and
   installed on the phone. Not tried on a phone GPU yet.
+- 2026-11-19 (6.11.19.6): **step 6: exports and grooves.** A track's Exports section (`ExportSection.tsx`,
+  `songExport.ts`): MIDI (bass tab, drum tab on channel 10 with GM keys, one track per sound of the patch from its
+  haps with note ends; tempo, time signature, sections as markers), Ableton `.als` written in the browser
+  (`alsWrite.ts`, a port of TSWebsocketServer's `alsExport.ts` on strings: MIDI tracks only, tempo, locators, 4/4 as the
+  template; `als/empty.als` 12 KB in its own chunk; `CompressionStream`), the whole track as one library JSON.
+  Grooves (`GroovesScreen.tsx`): strudel-flow (https://app.videodromm.com/, configurable) in an iframe + new tab;
+  pasted code plays, goes into a track's patch (`addToPatch`) or starts a track; a strudel-flow JSON is recognised
+  (its generator needs strudel-flow's node registry: not ported). Tests 51/51. Not opened in Live or a DAW yet.
+  **Release AAB** built the same day for the Google Play closed test (versionCode 6111906).
 
 ## Next
 

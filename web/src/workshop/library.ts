@@ -466,6 +466,23 @@ export const exportLibrary = (lib: Library): string =>
     hydra: lib.hydra, sketches: lib.sketches,
   }, null, 1);
 
+/**
+ * "The whole track" (step 6): a library file holding that track only, with its tab, patch, drum tab and Hydra sketch,
+ * so the Data screen's import reads it back like any library (merge, replace or keep both). `scope: "track"` is a
+ * hint for people reading the file; validateLibrary ignores it.
+ */
+export function exportWholeTrack(lib: Library, folder: string): string | undefined {
+  const t = lib.tracks.find((x) => x.folder === folder);
+  if (!t) return undefined;
+  const one = <T,>(m: Record<string, T>): Record<string, T> => (m[folder] !== undefined ? { [folder]: m[folder] } : {});
+  const tab = lib.tabs[folder];
+  const track: Track = tab ? { ...t, tabFile: `${folder}.tab.json`, tab: { ...t.tab, tuning: tab.tuning } } : t;
+  return JSON.stringify({
+    app: LIBRARY_APP, version: 1, scope: 'track', setlists: [], tracks: [track], tabs: one(lib.tabs), patches: one(lib.patches),
+    drums: one(lib.drums), hydra: one(lib.hydra), sketches: [],
+  }, null, 1);
+}
+
 /** <folder>.strudel.js */
 export const exportPatch = (lib: Library, folder: string): string | undefined => lib.patches[folder];
 

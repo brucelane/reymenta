@@ -1,6 +1,6 @@
 {
   "name": "reymenta",
-  "version": "6.11.19.5",
+  "version": "6.11.19.6",
   "private": true,
   "description": "Reymenta: the audience plays along with the AV set from their phones (live.videodromm.com)",
   "license": "AGPL-3.0-or-later",
@@ -50,6 +50,7 @@
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-basic-ssl": "^1.2.0",
     "@vitejs/plugin-react": "^4.7.0",
+    "@xmldom/xmldom": "0.9.12",
     "pngjs": "7.0.0",
     "qrcode": "1.5.4",
     "tsx": "^4.20.6",

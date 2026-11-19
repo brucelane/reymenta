@@ -119,3 +119,7 @@
 .ws-hydra-opacity input { flex: 1; }
 .ws-hydra-code .cm-editor, .ws-hydra-code .cm-gutters, .ws-hydra-code .cm-activeLineGutter { background: transparent !important; }
 .ws-hydra-code .cm-activeLine { background: rgba(255, 255, 255, 0.06) !important; }
+/* step 6: exports, grooves (strudel-flow) */
+.ws-check { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 6px 0; }
+.ws-flow { width: 100%; height: 70vh; border: 1px solid #2a2a33; border-radius: 10px; background: #fff; }
+.ws-groove-code { display: block; width: 100%; box-sizing: border-box; margin-top: 4px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; background: #15151b; color: inherit; border: 1px solid #2a2a33; border-radius: 10px; padding: 8px; }

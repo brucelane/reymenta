@@ -16,6 +16,8 @@ const StrudelSection = lazy(() => import('./StrudelSection'));
 const DrumSection = lazy(() => import('./DrumSection'));
 // hydra-synth and its editor: only when the Hydra section opens (step 5)
 const HydraSection = lazy(() => import('./HydraSection'));
+// MIDI / .als / whole-track JSON (step 6)
+const ExportSection = lazy(() => import('./ExportSection'));
 
 const BPB = [2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 7, 7.5, 8, 9, 12];
 
@@ -31,6 +33,7 @@ export function TrackScreen({ t, lib, folder, cat, setLib, update, fretboard, de
   const [strudelOpen, setStrudelOpen] = useState(false);
   const [drumsOpen, setDrumsOpen] = useState(false);
   const [hydraOpen, setHydraOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   // the patch playing: the bass tab follows its bar; stopped, the tab stays where it was
   const [clock, setClock] = useState<ClockAt | undefined>();
   const onClock = (c: ClockAt | undefined) => {
@@ -155,6 +158,15 @@ export function TrackScreen({ t, lib, folder, cat, setLib, update, fretboard, de
         <Suspense fallback={<p className="ws-dim">{t.loading}</p>}>
           <HydraSection t={t} name={folder} title={track.title} bpm={track.bpm} code={lib.hydra[folder]}
             save={(c) => update((l) => setHydra(l, folder, c))} />
+        </Suspense>
+      )}
+
+      <h2 className="ws-fold">
+        <button onClick={() => setExportOpen((o) => !o)} aria-expanded={exportOpen}>{exportOpen ? '▾' : '▸'} {t.exports}</button>
+      </h2>
+      {exportOpen && (
+        <Suspense fallback={<p className="ws-dim">{t.loading}</p>}>
+          <ExportSection t={t} lib={lib} folder={folder} track={track} />
         </Suspense>
       )}
 

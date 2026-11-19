@@ -75,8 +75,8 @@ export const saveLibrary = (lib: Library) =>
   }));
 
 /** Saves a file to the device: an <a download> with a Blob (browsers; inside the Android app's WebView it may do nothing). */
-export function download(name: string, text: string, type = 'application/json') {
-  const url = URL.createObjectURL(new Blob([text], { type }));
+export function download(name: string, text: string | Uint8Array, type = 'application/json') {
+  const url = URL.createObjectURL(new Blob([text as BlobPart], { type }));
   const a = document.createElement('a');
   a.href = url;
   a.download = name;
