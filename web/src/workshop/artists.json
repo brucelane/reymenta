@@ -1,0 +1,170 @@
+{
+  "artists": [
+    {
+      "id": "batchass",
+      "name": "Batchass",
+      "projects": [
+        "BA"
+      ],
+      "tagline": {
+        "fr": "Electro-Fusion Visual Experience",
+        "en": "Electro-Fusion Visual Experience"
+      },
+      "bio": {
+        "fr": "Combinaison d'éléments visuels et de musique originale. Animation de vidéos, photos, dessins originaux et mix de shaders codés en direct. Création musicale par le biais de machines, de basse et de voix travaillées et improvisées, sur fond d'électro-fusion industriel. Musique et visuels jouent ensemble, en direct : le code projeté fait partie du spectacle.",
+        "en": "Combination of visuals and original music. Animation of photos, videos, original drawings, and shaders live-coded and mixed on stage. Musical creation with machines, bass, worked and improvised voices, on an industrial electro-fusion background. Sound and visuals are played together, live: the projected code is part of the show."
+      },
+      "members": [
+        {
+          "name": "Bruce",
+          "role": {
+            "fr": "basse, machines, VJ, composition",
+            "en": "bass, machines, VJ, composer"
+          }
+        },
+        {
+          "name": "MrX",
+          "role": {
+            "fr": "performance, voix, création visuelle, composition",
+            "en": "performer, vocals, visual creator, composer"
+          }
+        }
+      ],
+      "links": [
+        {
+          "platform": "website",
+          "url": "https://www.batchass.fr/"
+        },
+        {
+          "platform": "spotify",
+          "url": "https://open.spotify.com/artist/7g821hxayoVcg1yU71wmF7"
+        },
+        {
+          "platform": "applemusic",
+          "url": "https://music.apple.com/us/artist/batchass/1832753808"
+        },
+        {
+          "platform": "deezer",
+          "url": "https://www.deezer.com/fr/artist/340834021"
+        },
+        {
+          "platform": "bandcamp",
+          "url": "https://batchass.bandcamp.com/"
+        },
+        {
+          "platform": "soundcloud",
+          "url": "https://soundcloud.com/batchass"
+        },
+        {
+          "platform": "instagram",
+          "url": "https://www.instagram.com/batchass"
+        },
+        {
+          "platform": "facebook",
+          "url": "https://www.facebook.com/batchass.fr"
+        },
+        {
+          "platform": "booking",
+          "url": "https://www.batchass.fr/contact.html"
+        }
+      ],
+      "logo": "artists/batchass.jpg"
+    },
+    {
+      "id": "brucelane",
+      "name": "Bruce Lane",
+      "projects": [
+        "BL"
+      ],
+      "tagline": {
+        "fr": "Bassiste, compositeur, codeur créatif, VJ",
+        "en": "Bassist, composer, creative coder, VJ"
+      },
+      "bio": {
+        "fr": "Bassiste et compositeur depuis une quarantaine d'années, Bruce Lane a commencé par la fusion funk/rock et mélange aujourd'hui funk, dub, rock, soul, EBM et industriel dans une musique sombre, dansante et le plus souvent instrumentale, où la basse mène. Codeur créatif, il écrit ses propres outils, Videodrömm : visuels codés en direct (C++, GLSL), patches Strudel, tablatures. Il joue basse et visuels sur scène avec Batchass et Reymenta.",
+        "en": "A bassist and composer for some forty years, Bruce Lane started with funk/rock fusion and now mixes funk, dub, rock, soul, EBM and industrial into dark, danceable, mostly instrumental music led by the bass. A creative coder, he writes his own tools, Videodrömm: live-coded visuals (C++, GLSL), Strudel patches, tabs. He plays bass and visuals on stage with Batchass and Reymenta."
+      },
+      "members": [],
+      "links": [
+        {
+          "platform": "website",
+          "url": "https://app.brucelane.fr/"
+        },
+        {
+          "platform": "youtube",
+          "url": "https://www.youtube.com/@brucelane"
+        },
+        {
+          "platform": "facebook",
+          "url": "https://www.facebook.com/brucelane.fr/"
+        },
+        {
+          "platform": "linkedin",
+          "url": "https://www.linkedin.com/in/brucelane06/"
+        },
+        {
+          "platform": "videodromm",
+          "url": "https://tabs.videodromm.com"
+        }
+      ],
+      "logo": "artists/brucelane.png"
+    },
+    {
+      "id": "reymenta",
+      "name": "Reymenta",
+      "projects": [
+        "RM"
+      ],
+      "tagline": {
+        "fr": "Set audiovisuel : le public joue avec",
+        "en": "An audiovisual set the audience plays along with"
+      },
+      "bio": {
+        "fr": "Reymenta est le projet audiovisuel de Bruce Lane : drum'n'bass sombre et techstep, basse en avant, visuels codés en direct dans Videodrömm. Pendant le set, le public joue avec depuis son téléphone : inclinaisons, secousses, touchers et emojis font bouger les visuels sur l'écran géant. Joué notamment au Live Performers Meeting 2026 à Rome.",
+        "en": "Reymenta is Bruce Lane's audiovisual project: dark drum'n'bass and techstep, bass up front, visuals live-coded in Videodrömm. During the set the audience plays along from their phones: tilts, shakes, taps and emojis move the visuals on the big screen. Played at the Live Performers Meeting 2026 in Rome."
+      },
+      "members": [
+        {
+          "name": "Bruce Lane",
+          "role": {
+            "fr": "basse, musique originale, VJ",
+            "en": "bass, original music, VJ"
+          }
+        }
+      ],
+      "links": [
+        {
+          "platform": "facebook",
+          "url": "https://www.facebook.com/reymentamusic"
+        },
+        {
+          "platform": "event",
+          "url": "https://liveperformersmeeting.net/editions/2026-rome/program/detail/burning-chrome/"
+        },
+        {
+          "platform": "app",
+          "url": "https://live.videodromm.com"
+        }
+      ],
+      "logo": "artists/reymenta.png"
+    }
+  ],
+  "about": {
+    "title": "Sophia Digital Art",
+    "text": {
+      "fr": "Cette application est faite par Bruce Lane, au sein de Sophia Digital Art (« Code is Art ») : une association de la Côte d'Azur pour l'art numérique et multimédia, projections vidéo interactives et code en direct sur musique électronique, qui a organisé les festivals SDA en 2014 et 2015. Les tablatures, patches Strudel et visuels sont partagés librement (AGPL) : jouez-les, modifiez-les, faites-en les vôtres.",
+      "en": "This app is made by Bruce Lane, within Sophia Digital Art (\"Code is Art\"): an association from the Côte d'Azur for digital and multimedia art, interactive video projections and live code on electronic music, which ran the SDA festivals in 2014 and 2015. The tabs, Strudel patches and visuals are shared freely (AGPL): play them, change them, make them yours."
+    },
+    "links": [
+      {
+        "platform": "website",
+        "url": "http://sophiadigitalart.com/"
+      },
+      {
+        "platform": "source",
+        "url": "https://github.com/brucelane/reymenta"
+      }
+    ],
+    "logo": "artists/sda.png"
+  }
+}

@@ -1,7 +1,8 @@
 // The audience server, on the show PC (milestone 1: the LAN; Azure Web PubSub replaces the phone side later).
 // - phones connect to ws://<host>:<PORT>/ws (through the Vite dev server's https proxy, for the sensors);
 // - the room's values go to Cinder as iAud0..31 through TSWebsocketServer;
-// - GET /status: the room as JSON (count, aggregates, connection).
+// - GET /status: the room as JSON (count, aggregates, connection);
+// - GET /api/library/<path>: the public library for the Workshop (assets/public/library, LIBRARY_DIR).
 // Phones never reach TSWebsocketServer: nothing they send can become a Cinder command.
 //
 // Environment: PORT (5191), HOST (0.0.0.0), TSWS_URL (ws://127.0.0.1:40088), ACCESS_TOKEN (TSWebsocketServer's;
@@ -20,6 +21,8 @@ import { parsePhoneMessage } from '../room/protocol';
 import { IAUD0, Room, type Outgoing } from '../room/room';
 import { connectCinder } from './cinder';
 import { connectCloud } from './cloud';
+import { TabFollow } from './tabFollow';
+import { defaultLibraryDir, handleLibrary } from './library';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 5191);
@@ -39,7 +42,7 @@ function tswsToken(): string {
 const log = (s: string) => console.log(`${new Date().toISOString().slice(11, 19)} ${s}`);
 const room = new Room();
 if (process.env.MODE) room.mode = process.env.MODE;
-const cinder = connectCinder(TSWS_URL, tswsToken(), log, (folder) => onCinderFolder(folder));
+const cinder = connectCinder(TSWS_URL, tswsToken(), log, (folder) => onCinderFolder(folder), (raw) => onRelayed(raw));
 const sockets = new Map<string, WebSocket>(); // phone id -> its socket (LAN phones)
 
 // reymenta/.env: KEY=value lines (process.env wins)
@@ -80,6 +83,7 @@ const cloud = setting('PUBSUB_CONNECTION_STRING')
       if (!msg || (msg.t === 'hello' && msg.id !== userId)) return;
       if (msg.t === 'emo' && !emojisOn()) return;
       if (msg.t === 'hello') cloudPhones.add(userId);
+      if (msg.t === 'tab') onTabView(userId, msg.on);
       deliver(room.receive(userId, msg, now));
     }, log)
   : undefined;
@@ -126,6 +130,41 @@ function onCinderFolder(folder: string) {
   broadcastEmojis(before);
 }
 
+// The playing bass tab (2026-11-19, studies/reymenta-workshop.md): phones that open the tab view get the track's tab
+// once and the clock every second while it plays (only them: cloud messages count against the quota)
+const tabFollow = new TabFollow(assetsGlsl);
+const tabPhones = new Map<string, string>(); // phone id -> the folder whose tab it has ("" = none yet)
+
+function sendTo(id: string, m: unknown) {
+  const ws = sockets.get(id);
+  if (ws && ws.readyState === ws.OPEN) ws.send(JSON.stringify(m));
+  else if (cloud && cloudPhones.has(id)) cloud.send(id, m);
+}
+
+/** The clock (and the tab, when the phone doesn't have this track's yet) to the tab-view phones. */
+function sendTab(only?: string) {
+  const clock = tabFollow.clock();
+  if (!clock) return;
+  for (const [id, has] of tabPhones) {
+    if (only && id !== only) continue;
+    if (has !== clock.f) {
+      tabFollow.forget(clock.f); // re-read: the tab may have been rebuilt since
+      const tab = tabFollow.tab(clock.f);
+      if (tab) sendTo(id, tab);
+      tabPhones.set(id, clock.f);
+    }
+    sendTo(id, clock);
+  }
+}
+
+function onRelayed(raw: string) {
+  if (tabFollow.receive(raw)) sendTab();
+}
+
+function onTabView(id: string, on: boolean) {
+  if (on) { tabPhones.set(id, ''); sendTab(id); } else tabPhones.delete(id);
+}
+
 function setEmojiMode(mode: 'auto' | 'on' | 'off') {
   const before = emojisOn();
   emojiMode = mode;
@@ -153,7 +192,11 @@ async function closeShow(): Promise<string> {
 const isLocal = (addr?: string) => !!addr && /^(127\.|::1$|::ffff:127\.)/.test(addr);
 const ADMIN_TOKEN = tswsToken();
 
+const LIBRARY_DIR = defaultLibraryDir(here);
+
 const http = createServer((req, res) => {
+  // the public library for the Workshop (read only, any origin): src/server/library.ts
+  if (handleLibrary(LIBRARY_DIR, req, res)) return;
   // admin (Show-Access.ps1): this PC only, with TSWebsocketServer's token when it has one
   const emojiCmd = /^\/admin\/emojis\/(on|off|auto)$/.exec(req.url ?? '');
   if (req.url === '/admin/open' || req.url === '/admin/close' || emojiCmd) {
@@ -207,11 +250,13 @@ wss.on('connection', (ws) => {
       sockets.set(id, ws);
     }
     if (!id) return;
+    if (msg.t === 'tab') onTabView(id, msg.on);
     deliver(room.receive(id, msg, now));
   });
   ws.on('close', () => {
     if (id && sockets.get(id) === ws) {
       sockets.delete(id);
+      tabPhones.delete(id);
       deliver(room.leave(id));
     }
   });
@@ -221,6 +266,7 @@ wss.on('connection', (ws) => {
 // 20 times a second: drop silent phones, send the values that changed to Cinder
 let sent: number[] = [];
 let lastCount = -1;
+let lastTabClock = 0;
 setInterval(() => {
   const now = Date.now();
   deliver(room.prune(now));
@@ -234,6 +280,14 @@ setInterval(() => {
   if (changed.length && cinder.connected) {
     cinder.sendUniforms(changed);
     sent = values;
+  }
+  // the tab clock once a second while the song plays (phones extrapolate in between)
+  if (tabPhones.size && now - lastTabClock >= 1000) {
+    lastTabClock = now;
+    // phones that left the room (asleep, cloud phones gone) stop getting the clock
+    const inRoom = new Set(room.participants().map((p) => p.id));
+    for (const id of tabPhones.keys()) if (!inRoom.has(id)) tabPhones.delete(id);
+    if (tabFollow.playing) sendTab();
   }
   if (room.count !== lastCount) {
     lastCount = room.count;

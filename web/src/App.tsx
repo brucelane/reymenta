@@ -1,9 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
-import { EMOJIS, type ServerMessage } from '../../src/room/protocol';
-import { connect, gateOpensAt, isNativeApp, phoneId, savedServer, saveServer, saveShowCode, showCode, type Connection, type Status } from './connection';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { EMOJIS, type ServerMessage, type TabMsg } from '../../src/room/protocol';
+import { TabView, type ClockAt } from './TabView';
+import { connect, fromShowLink, gateOpensAt, isNativeApp, phoneId, savedServer, saveServer, saveShowCode, showCode, type Connection, type Status } from './connection';
 import { discoverServer } from './discovery';
 import { initialLang, saveLang, texts, type Lang } from './i18n';
 import { debugSensors, demoMotion, requestMotionPermission, startMotion, type Motion } from './sensors';
+
+// the Workshop (studies/reymenta-workshop.md step 3): loaded only when opened, so the Show page stays small
+const Workshop = lazy(() => import('./workshop/Workshop'));
+type AppMode = 'show' | 'workshop';
+const MODE_KEY = 'reymenta:mode';
+function initialMode(): AppMode {
+  if (fromShowLink || new URLSearchParams(location.search).has('room')) return 'show';
+  try { return localStorage.getItem(MODE_KEY) === 'workshop' ? 'workshop' : 'show'; } catch { return 'show'; }
+}
 
 interface Me { slot: number; x: number; y: number; count: number; name: { fr: string; en: string }; hue: number }
 
@@ -17,6 +27,17 @@ export function App() {
   const [code, setCode] = useState(showCode);
   // the emoji row: hidden until the track playing opens it (the server says so, 2026-11-17); ?demo always shows it
   const [emojis, setEmojis] = useState(demoMotion);
+  // the bass tab view (2026-11-19): the server sends the playing track's tab and clock only while it's open
+  const [tabOpen, setTabOpen] = useState(false);
+  const tabOpenRef = useRef(false);
+  const [tab, setTab] = useState<TabMsg | undefined>();
+  const [clock, setClock] = useState<ClockAt | undefined>();
+  const toggleTab = () => {
+    const on = !tabOpenRef.current;
+    tabOpenRef.current = on;
+    setTabOpen(on);
+    conn.current?.send({ t: 'tab', on });
+  };
   const conn = useRef<Connection | undefined>(undefined);
   const motion = useRef<Motion>({ tx: 0, ty: 0, sh: 0 });
   const touch = useRef({ to: 0 as 0 | 1, px: 0.5, py: 0.5 });
@@ -24,6 +45,9 @@ export function App() {
   const t = texts(lang);
 
   const switchLang = (l: Lang) => { setLang(l); saveLang(l); };
+  // Show (the audience page) or Workshop, the last choice remembered
+  const [mode, setModeState] = useState<AppMode>(initialMode);
+  const setMode = (m: AppMode) => { setModeState(m); try { localStorage.setItem(MODE_KEY, m); } catch { /* blocked */ } };
 
   // connected but no welcome after a few seconds: the show (the audience server) isn't running yet
   const [waiting, setWaiting] = useState(false);
@@ -57,12 +81,18 @@ export function App() {
         if (msg.t === 'welcome') {
           setFull(false);
           setMe((m) => ({ slot: msg.slot, x: msg.x, y: msg.y, count: m?.count ?? msg.slot + 1, name: msg.name, hue: msg.hue }));
+          // after a reconnect the server has forgotten the open tab view
+          if (tabOpenRef.current) conn.current?.send({ t: 'tab', on: true });
         } else if (msg.t === 'place') {
           setMe((m) => (m ? { ...m, slot: msg.slot, x: msg.x, y: msg.y, count: msg.count } : m));
         } else if (msg.t === 'full') {
           setFull(true);
         } else if (msg.t === 'emojis') {
           setEmojis(msg.on);
+        } else if (msg.t === 'tab') {
+          setTab(msg);
+        } else if (msg.t === 'clock') {
+          setClock({ msg, at: performance.now() });
         }
       },
       setStatus,
@@ -113,6 +143,14 @@ export function App() {
     </div>
   );
 
+  if (!joined && mode === 'workshop') {
+    return (
+      <Suspense fallback={<main className="join"><p className="tagline">…</p></main>}>
+        <Workshop lang={lang} langSwitch={langSwitch} onShow={() => setMode('show')} />
+      </Suspense>
+    );
+  }
+
   if (!joined) {
     return (
       <main className="join">
@@ -128,6 +166,7 @@ export function App() {
           </label>
         )}
         <button className="big" onClick={join}>{t.join}</button>
+        <button className="workshop-btn" onClick={() => setMode('workshop')}>{t.workshop}</button>
         <p className="small">{t.privacy}</p>
         <p className="small">
           <a href="https://assets.batchass.fr/reymenta/privacy.html" target="_blank" rel="noreferrer">{t.privacyLink}</a>
@@ -145,6 +184,7 @@ export function App() {
       <header>
         {me ? <><span className="youare">{t.youAre}</span> <b className="name">{me.name[lang]}</b><span className="place">{t.place(me.slot, me.count)}</span></> : <span>{waiting ? t.waiting : t.joining}</span>}
         {status !== 'open' && me && <span className="warn">{t.reconnecting}</span>}
+        {me && <button className={`tab-toggle${tabOpen ? ' on' : ''}`} onClick={toggleTab}>{t.tab}</button>}
       </header>
       {full && <p className="warn">{t.full}</p>}
       {status === 'gate-closed' && !me && (
@@ -163,8 +203,9 @@ export function App() {
       )}
       {!sensors && <p className="warn">{t.sensorsOff}</p>}
       {debugSensors && <p className="small">sensor {m.src ?? '?'} · tilt {m.tx.toFixed(2)} {m.ty.toFixed(2)} · shake {m.sh.toFixed(2)}</p>}
+      {tabOpen && <TabView tab={tab} clock={clock} texts={t} />}
       <div
-        className="pad"
+        className={`pad${tabOpen ? ' small-pad' : ''}`}
         onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); onPointer(e, true); }}
         onPointerMove={(e) => { if (touch.current.to) onPointer(e, true); }}
         onPointerUp={(e) => onPointer(e, false)}

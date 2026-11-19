@@ -30,6 +30,53 @@ room's tilt/shake/touch/emoji into Cinder uniforms `iAud0..iAud31` (260..291). O
 - 2026-11-15: Android app (Capacitor 8, server discovery via capacitor-lan + mDNS `_reymenta._tcp`), Google Play prep (signed AAB, upload key in `%USERPROFILE%\.android-keys`, store graphics and phone/tablet screenshots, listing texts, privacy policy at assets.batchass.fr/reymenta/privacy.html), `pnpm bump`. **The app was set up on Google Play by the user (2026-11-15).** Next on Play: the closed test (12 testers opted in for 14 days in a row) before production can be requested.
 
 - 2026-11-15: cloud path (Azure Web PubSub `sophiaantipolis`, hub `reymenta`, room `reymenta` in `.env`) checked end to end: `scripts/cloud-check.ts` joined through Azure and got its welcome from the audience server. SWA created by the user (Free, GitHub deployment, workflow `.github/workflows/azure-static-web-apps-zealous-island-06f2fc203.yml` committed by the portal): deployed on every push to `main`, default address https://zealous-island-06f2fc203.8.azurestaticapps.net; a phone using that `/api/join` got its welcome through Azure (2026-11-15). `live.videodromm.com` live with Azure's certificate the same day (checked by the user, and `/api/join` there).
+- 2026-11-19 (6.11.19.1): **the playing bass tab on the phone** (`studies/reymenta-workshop.md` step 1). The audience
+  server reads every transport state TSWebsocketServer relays (`cinder.ts` `onRaw`): Cinder's (its position + the
+  track's bpm from track.json + the tab's `cycleBeats`) and, since today, the WebApps' (`cycle`, `cps`: their wav or
+  their Strudel pane); Cinder wins while fresh (`src/server/tabFollow.ts`). Phones open a "Bass tab" view (header
+  button): `{t:"tab",on}` → the track's tab once, compact (`TabMsg`: `[beat, string, fret, dur]`, sections, title;
+  ~9 KB for Hex Bolt) and `{t:"clock"}` every second while playing and on every change; only those phones (cloud
+  quota). The phone (`web/src/TabView.tsx`) draws 3 bars with a playhead it moves between clocks; the tab view is
+  re-requested after a reconnect. Tests `test/tabfollow.test.ts` (19/19 in all); checked against a stand-in
+  TSWebsocketServer and phone (tab once, clock 1/s, stop). Not tried on a real phone yet.
+- 2026-11-19 (6.11.19.2): **steps 2 and 3 of `studies/reymenta-workshop.md`.** `src/core/`: copies of the WebApp's
+  pure modules (songGrid, scales, bassist, strudelLength, midiFile, alsImport) made by `pnpm sync-core`
+  (`scripts/sync-core.mjs`); never edit them here, `test/core.test.ts` fails when they differ from the WebApp's.
+  **The Workshop** (offline, FR/EN, `web/src/workshop/`, lazy-loaded: 18 KB gzipped, nothing added to the Show
+  page): start screen "Show" / "Workshop" (remembered; a QR link always opens the Show); the user's library in
+  IndexedDB (localStorage fallback) with export (whole library, or one track.json / tab.json / setlist) and import
+  (type detected, replace or keep both, validated); setlists and tracks (public setlists read-only with "copy to
+  mine"); bass tab view (`web/src/TabView.tsx`, still mode) and editor (16th grid × 4 strings, number pad, lengths,
+  bars, sections; notes outside E1–D3 or on open strings other than low E in orange; files stay `TabData`:
+  notes in `song.tracks.tabbass`, strings in `overrides`, `tab` from `fretBass`); fretboard (bass 4/5, guitar 6,
+  4 tunings, 12/24 frets, the track's key); artists and About pages. Public catalogue (`catalogue.ts`): the
+  audience server's `GET /api/library/<path>` (`src/server/library.ts`, read-only, JSON/PNG, CORS `*`, folder
+  `assets/public/library` or `LIBRARY_DIR`), else https://assets.batchass.fr/library/, cached for offline; opening a
+  public track copies it into the library. The library itself is built by `live/build-public-library.mjs` (root
+  repo), which also writes the bundled offline copy `web/src/workshop/artists.json`. Tests 32/32 (workshop 11);
+  clicked through in headless Edge at phone size. Not tried on a phone or in the Android app (downloads from its
+  WebView may do nothing; the page says so). BEAD tuning listed but disabled (`fretBass` is 4-string).
+- 2026-11-19 (6.11.19.3): **step 4: Strudel and the drum tab in the Workshop.** `web/src/workshop/strudelEngine.ts`
+  (a slim copy of the WebApp's engine: `@strudel/web/web.mjs` 1.3.0 + soundfonts 1.3.0, 10 s per sound list, the
+  audio resumed inside the click, `.early()`, the end of a full track, `.bassist()`), `StrudelSection.tsx` (CodeMirror,
+  Play/Stop, bar n/N, scrub + section buttons, import/export `.strudel.js`, revert to the public original; the bass tab
+  follows the playing bar; code from a file or the catalogue runs only on Play), `drums.ts` + `DrumSection.tsx` (a drum
+  grid per bar, 16 kits, toggles, generated `s(arrange(...)).bank(kit)` code, "read the drums from the patch" by
+  querying its haps, "add to the patch"). The library keeps `patches` and `drums`. `@strudel/core/mini/transpiler`
+  1.2.6 are dev dependencies for the Node tests only (one engine copy in the bundle). Sizes gzip: Show 69.8 KB, the
+  Workshop's first screen 25 KB, the Strudel chunk 364 KB (+19 KB soundfonts). Tests 39/39; clicked through in headless
+  Edge (Ambivalence plays and its bass tab follows; its drums read as 136 bars). Not heard on a real phone yet.
+- 2026-11-19 (6.11.19.4): **step 5: Hydra in the Workshop.** `web/src/workshop/HydraSection.tsx` (hydra-synth 1.4.0,
+  AGPL, `makeGlobal: false`; canvas under a CodeMirror overlay with adjustable opacity; Ctrl+Enter line/selection,
+  Alt+Enter block, Ctrl+Shift+Enter all, Ctrl+Shift+H hide code; Run / Hide / Mic buttons; code from a file or the
+  catalogue runs only on Run; the microphone only after a tap; nothing runs when the section is closed),
+  `hydraComplete.ts` (52 functions with parameters and defaults read from hydra-synth's `glsl-functions.js`, snippets
+  + a parameter hint), `hydraShortcuts.ts` (the user's 32 Ctrl+Space shortcuts from his 2021 editor
+  `C:/cpp/hydra/BruceHydrasophiadigitalart.fr/hydra-server/app/src/editor.js`; `ch` calls `chromatic()`, not built into
+  Hydra), `hydra.ts` (64 KB cap, a dark starter with the track's bpm, free sketches). Library: `hydra: {<folder>: code}`
+  and `sketches: [{id, title, code}]`. Sizes gzip: Show 69.8 KB, Workshop 26.9 KB, Hydra 67.3 KB, CodeMirror 148.8 KB
+  (shared with Strudel), Strudel 224.9 KB. Tests 46/46; headless Edge (SwiftShader WebGL) ran it; APK rebuilt and
+  installed on the phone. Not tried on a phone GPU yet.
 
 ## Next
 

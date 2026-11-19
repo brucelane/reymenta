@@ -7,6 +7,7 @@ const TEXTS = {
   fr: {
     tagline: 'Jouez avec le set depuis votre téléphone',
     join: 'Rejoindre le show',
+    workshop: 'Atelier : setlists, tablatures, manche (hors ligne)',
     server: 'Serveur (adresse du PC du show)',
     search: { searching: 'Recherche du serveur sur le Wi-Fi…', found: 'Serveur trouvé', notfound: 'Pas de serveur sur ce Wi-Fi : connexion par internet (ou tapez son adresse)' },
     joining: 'Connexion…',
@@ -25,10 +26,15 @@ const TEXTS = {
     privacy: 'Seuls des nombres quittent votre téléphone (inclinaison, toucher). Rien n\'est gardé après la soirée.',
     privacyLink: 'Confidentialité',
     googlePlay: 'Application Android',
+    tab: 'Tab basse',
+    tabWaiting: "Pas de morceau en cours : la tablature apparaît dès qu'un morceau joue (Cinder ou la WebApp).",
+    tabNone: "Ce morceau n'a pas de tablature de basse.",
+    tabStopped: "à l'arrêt",
   },
   en: {
     tagline: 'Play along with the set from your phone',
     join: 'Join the show',
+    workshop: 'Workshop: setlists, tabs, fretboard (offline)',
     server: 'Server (the show PC\'s address)',
     search: { searching: 'Looking for the server on the Wi-Fi…', found: 'Server found', notfound: 'No server on this Wi-Fi: connecting over the internet (or type its address)' },
     joining: 'Connecting…',
@@ -47,6 +53,10 @@ const TEXTS = {
     privacy: 'Only numbers leave your phone (tilt, touch). Nothing is kept after the evening.',
     privacyLink: 'Privacy',
     googlePlay: 'Android app',
+    tab: 'Bass tab',
+    tabWaiting: 'No track playing: the tab shows up as soon as a track plays (Cinder or the WebApp).',
+    tabNone: 'This track has no bass tab.',
+    tabStopped: 'stopped',
   },
 };
 

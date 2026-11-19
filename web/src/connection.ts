@@ -64,9 +64,12 @@ export function showCode(): string {
 export function saveShowCode(code: string) {
   try { localStorage.setItem(CODE_KEY, code.trim()); } catch { /* storage blocked */ }
 }
+/** The page was opened from the show's QR code (?k=): it opens on the Show, not the Workshop. */
+export let fromShowLink = false;
 {
   const k = params.get('k');
   if (k) {
+    fromShowLink = true;
     saveShowCode(k);
     params.delete('k');
     const rest = params.toString();

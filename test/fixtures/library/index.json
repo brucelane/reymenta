@@ -1,0 +1,20 @@
+{
+  "app": "videodromm-library",
+  "version": 1,
+  "generated": "2026-11-19T00:00:00.000Z",
+  "artists": [
+    { "id": "batchass", "name": "Batchass", "tagline": { "fr": "Electro-Fusion", "en": "Electro-Fusion" }, "bio": { "fr": "bio", "en": "bio" },
+      "members": [{ "name": "Bruce", "role": { "fr": "basse", "en": "bass" } }],
+      "links": [{ "platform": "Spotify", "url": "https://open.spotify.com/artist/x" }, { "platform": "Bad", "url": "javascript:alert(1)" }],
+      "logo": "artists/batchass.png" },
+    { "id": "Bad Id", "name": "x" }
+  ],
+  "about": { "title": "Sophia Digital Art", "text": { "fr": "asso", "en": "association" }, "links": [], "logo": "../secret.png" },
+  "setlists": [{ "name": "demo", "title": "Demo", "project": "BL", "tracks": [{ "title": "Demo song", "folder": "demo" }] }],
+  "tracks": [
+    { "id": "demo", "project": "BL", "title": "Demo song", "folder": "demo", "tonality": "E", "mode": "minor", "bpm": 120, "artist": "batchass", "tab": "tabs/demo.tab.json",
+      "patch": "patches/demo.strudel.js", "shader": "shaders/demo.glsl" },
+    { "id": "evil", "title": "Evil", "folder": "../evil", "tab": "../x" },
+    { "id": "odd", "title": "Odd", "folder": "odd", "patch": "../../secret.js", "shader": "tabs/x.glsl" }
+  ]
+}

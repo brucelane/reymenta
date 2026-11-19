@@ -12,7 +12,27 @@ export type PhoneMessage =
    *  px, py: finger position 0..1 on the phone screen (when to = 1) */
   | { t: 'in'; tx?: number; ty?: number; sh?: number; to?: 0 | 1; px?: number; py?: number }
   /** an emoji from the fixed list (index) */
-  | { t: 'emo'; e: number };
+  | { t: 'emo'; e: number }
+  /** the bass tab view opened (on) or closed: only then the server sends the tab and its clock (2026-11-19) */
+  | { t: 'tab'; on: boolean };
+
+/** The playing bass tab, compact (server -> a phone with the tab view open, once per track). */
+export interface TabMsg {
+  t: 'tab';
+  /** the track's folder */
+  f: string;
+  title: string;
+  /** beats per cycle (4 for 4/4, 5 for 5/4...): a cycle is a bar */
+  bb: number;
+  /** notes: [beat, string (0 = the low string), fret, duration in beats] */
+  n: Array<[number, number, number, number]>;
+  /** sections: [beat, name] */
+  sec: Array<[number, string]>;
+  tuning: string;
+}
+/** Where the song is (server -> tab-view phones, every second while playing and on every change):
+ *  f folder, p playing, c the song's bar - 1 (fractional, at reception), s cycles per second. */
+export interface TabClockMsg { t: 'clock'; f: string; p: 0 | 1; c: number; s: number }
 
 /** Server -> one phone. */
 export type ServerMessage =
@@ -27,7 +47,9 @@ export type ServerMessage =
   /** the server doesn't know this phone (it timed out, or the server restarted): say hello again */
   | { t: 'rejoin' }
   /** the emoji row shown or hidden (2026-11-17): on when the track Cinder plays opens it, or the operator does */
-  | { t: 'emojis'; on: boolean };
+  | { t: 'emojis'; on: boolean }
+  | TabMsg
+  | TabClockMsg;
 
 /** The fixed emoji list: the phone sends an index, never text. */
 export const EMOJIS = ['🔥', '😍', '🤯', '👏', '🚀', '🌀', '💜', '🎛️'] as const;
@@ -66,6 +88,8 @@ export function parsePhoneMessage(raw: string): PhoneMessage | undefined {
       const e = o.e;
       return typeof e === 'number' && Number.isInteger(e) && e >= 0 && e < EMOJIS.length ? { t: 'emo', e } : undefined;
     }
+    case 'tab':
+      return typeof o.on === 'boolean' ? { t: 'tab', on: o.on } : undefined;
     default:
       return undefined;
   }

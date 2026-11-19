@@ -21,7 +21,11 @@ function cinderFolder(raw: string): string | undefined {
   return typeof name === 'string' && /^[A-Za-z0-9 _.-]{1,64}$/.test(name) && !name.includes('..') ? name : undefined;
 }
 
-export function connectCinder(url: string, token: string, log: (s: string) => void, onFolder?: (folder: string) => void): CinderLink {
+export function connectCinder(
+  url: string, token: string, log: (s: string) => void, onFolder?: (folder: string) => void,
+  /** every message TSWebsocketServer relays, raw (the tab clock reads the transport states: tabFollow.ts) */
+  onRaw?: (raw: string) => void,
+): CinderLink {
   let ws: WebSocket | undefined;
   let connected = false;
   let closed = false;
@@ -35,8 +39,10 @@ export function connectCinder(url: string, token: string, log: (s: string) => vo
     ws.on('open', () => { connected = true; log(`TSWebsocketServer connected (${shown})`); });
     // only Cinder's folder is read (to know which track plays); everything else is ignored
     ws.on('message', (data) => {
+      const raw = data.toString();
+      onRaw?.(raw);
       if (!onFolder) return;
-      const folder = cinderFolder(data.toString());
+      const folder = cinderFolder(raw);
       if (folder) onFolder(folder);
     });
     ws.on('close', () => {
