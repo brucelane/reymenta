@@ -38,4 +38,9 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- capacitor-lan's Wi-Fi permissions make Google Play imply the Wi-Fi feature as required, which hides the app
+         from devices without Wi-Fi (Play Console, 2026-11-19). The app works on mobile data (live.videodromm.com) and
+         offline (the Workshop): Wi-Fi is optional. -->
+    <uses-feature android:name="android.hardware.wifi" android:required="false" />
 </manifest>
