@@ -15,7 +15,7 @@ import { flowPatchInfo, grooveAsPatch, grooveExpression, parseGroove, validFlowU
 import { addTrack, detectImport, emptyLibrary, exportWholeTrack, merge, setDrums, setHydra, setPatch, setTab } from '../web/src/workshop/library';
 import { addToPatch } from '../web/src/workshop/patch';
 import {
-  buildExportSong, hapKey, noteNameToMidi, partChannels, partsFromHaps, songToMidiFile, timeSignature, type ExportSong,
+  buildExportSong, clickPart, CLICK_KEYS, hapKey, noteNameToMidi, practiceSong, sectionScenes, withCountIn, partChannels, partsFromHaps, songToMidiFile, timeSignature, type ExportSong,
 } from '../web/src/workshop/songExport';
 import { newTab, setNote, setSection } from '../web/src/workshop/tabEdit';
 
@@ -158,6 +158,60 @@ test('.als: gunzips, parses as XML, a MIDI track per part with its notes, tempo,
   const trackIds = [...xml.matchAll(/<(?:MidiTrack|ReturnTrack) Id="(\d+)"/g)].map((m) => m[1]);
   assert.equal(new Set(trackIds).size, trackIds.length);
   assert.throws(() => writeAlsXml(template, { ...s, parts: [] }), /nothing to export/);
+});
+
+test('.als extras: click track, count-in, Session scenes per section, practice set (loop, tempo, bass muted)', async () => {
+  const base = await song();
+  // click: every beat, the bar's first accented; odd meters in eighths
+  const c = clickPart(8, 4);
+  assert.equal(c.notes.length, 8);
+  assert.deepEqual(c.notes.slice(0, 2).map((x) => x.key), [CLICK_KEYS.accent, CLICK_KEYS.beat]);
+  assert.equal(clickPart(3.5, 3.5).notes.length, 7);
+  // count-in: a bar later, a #count-in locator
+  const ci = withCountIn({ ...base, parts: [...base.parts, clickPart(base.beats, 4)] }, 1);
+  assert.equal(ci.beats, base.beats + 4);
+  assert.equal(ci.parts[0].notes[0].beat, base.parts[0].notes[0].beat + 4);
+  assert.equal(ci.locators[0].name, '#count-in');
+  assert.equal(ci.parts.find((p) => p.name === 'click')!.notes.length, ci.beats);
+  // scenes from the locators ("start" before the first)
+  const sc = sectionScenes({ ...base, locators: [{ beat: 4, name: '#B' }], beats: 8 });
+  assert.deepEqual(sc, [{ name: 'start', start: 0, end: 4 }, { name: 'B', start: 4, end: 8 }]);
+  const template = gunzipSync(readFileSync(TEMPLATE)).toString('utf8');
+  const scenes = Array.from({ length: 10 }, (_, i) => ({ name: `S${i}`, start: 0, end: base.beats }));
+  const xml = writeAlsXml(template, { ...base, scenes });
+  const doc = new DOMParser().parseFromString(xml, 'text/xml');
+  const sceneEls = Array.from(doc.getElementsByTagName('Scenes')[0].getElementsByTagName('Scene'));
+  assert.equal(sceneEls.length, 10);
+  assert.equal(sceneEls[3].getElementsByTagName('Name')[0].getAttribute('Value'), 'S3');
+  // every clip slot list sized to the scenes (the returns' empty ones stay empty, as Live writes them); the first
+  // track's main sequencer has its clips, looping
+  for (const l of Array.from(doc.getElementsByTagName('ClipSlotList'))) {
+    const n = Array.from(l.childNodes).filter((x) => (x as unknown as Element).tagName === "ClipSlot").length;
+    assert.ok(n === 10 || n === 0, `${n} slots`);
+  }
+  const main = doc.getElementsByTagName('MidiTrack')[0].getElementsByTagName('MainSequencer')[0];
+  const sessionClips = Array.from(main.getElementsByTagName('ClipSlotList')[0].getElementsByTagName('MidiClip'));
+  assert.equal(sessionClips.length, 10);
+  assert.equal(sessionClips[0].getElementsByTagName('LoopOn')[0].getAttribute('Value'), 'true');
+  // practice set: tempo x rate, loop on bars 2-3, the bass tab (and the patch's bass) muted, a click
+  const ps = practiceSong(base, { fromBar: 1, bars: 2, rate: 0.5, muteBass: true, click: true });
+  assert.equal(ps.bpm, 50);
+  assert.deepEqual(ps.loop, { start: 4, length: 8 });
+  assert.deepEqual(ps.muted, ['tabbass', 'gm_electric_bass_pick notes']);
+  const px = writeAlsXml(template, ps);
+  const pd = new DOMParser().parseFromString(px, 'text/xml');
+  const tr = pd.getElementsByTagName('Transport')[0];
+  assert.equal(tr.getElementsByTagName('LoopOn')[0].getAttribute('Value'), 'true');
+  assert.equal(tr.getElementsByTagName('LoopStart')[0].getAttribute('Value'), '4');
+  assert.equal(tr.getElementsByTagName('LoopLength')[0].getAttribute('Value'), '8');
+  const speakers = Array.from(pd.getElementsByTagName('MidiTrack')).map((t) => [
+    t.getElementsByTagName('EffectiveName')[0].getAttribute('Value'),
+    t.getElementsByTagName('Speaker')[0].getElementsByTagName('Manual')[0].getAttribute('Value'),
+  ]);
+  assert.deepEqual(speakers.filter(([, v]) => v === 'false').map(([n]) => n), ['tabbass', 'gm_electric_bass_pick notes']);
+  assert.ok(speakers.some(([n]) => n === 'click'));
+  const ids = [...px.matchAll(POINTEE)].map((m) => Number(m[3]));
+  assert.equal(new Set(ids).size, ids.length);
 });
 
 test('the whole track as one JSON reads back (round trip)', () => {

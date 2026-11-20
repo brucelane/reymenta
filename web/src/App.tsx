@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { EMOJIS, type ServerMessage, type TabMsg } from '../../src/room/protocol';
+import { EMOJIS, type JamBeatMsg, type JamStateMsg, type PhoneMessage, type ServerMessage, type TabMsg } from '../../src/room/protocol';
 import { TabView, type ClockAt } from './TabView';
 import { connect, fromShowLink, gateOpensAt, isNativeApp, phoneId, savedServer, saveServer, saveShowCode, showCode, type Connection, type Status } from './connection';
 import { discoverServer } from './discovery';
@@ -8,6 +8,10 @@ import { debugSensors, demoMotion, requestMotionPermission, startMotion, type Mo
 
 // the Workshop (studies/reymenta-workshop.md step 3): loaded only when opened, so the Show page stays small
 const Workshop = lazy(() => import('./workshop/Workshop'));
+// the tuner (2026-11-20): its own chunk, loaded when opened
+const Tuner = lazy(() => import('./tuner/Tuner'));
+// the Jam (2026-11-20, studies/reymenta-jam.md): its own chunk
+const JamView = lazy(() => import('./jam/JamView'));
 type AppMode = 'show' | 'workshop';
 const MODE_KEY = 'reymenta:mode';
 function initialMode(): AppMode {
@@ -29,6 +33,13 @@ export function App() {
   const [emojis, setEmojis] = useState(demoMotion);
   // the bass tab view (2026-11-19): the server sends the playing track's tab and clock only while it's open
   const [tabOpen, setTabOpen] = useState(false);
+  const [tunerOpen, setTunerOpen] = useState(false);
+  // the Jam: chosen on the start screen (the phone joins the room, then opens the Jam screen)
+  const [jamMode, setJamMode] = useState(false);
+  const jamModeRef = useRef(false);
+  const [jamState, setJamState] = useState<JamStateMsg | undefined>();
+  const [jamBeat, setJamBeat] = useState<{ msg: JamBeatMsg; at: number } | undefined>();
+  const leaveJam = () => { jamModeRef.current = false; setJamMode(false); conn.current?.send({ t: 'jam', on: false }); };
   const tabOpenRef = useRef(false);
   const [tab, setTab] = useState<TabMsg | undefined>();
   const [clock, setClock] = useState<ClockAt | undefined>();
@@ -83,6 +94,7 @@ export function App() {
           setMe((m) => ({ slot: msg.slot, x: msg.x, y: msg.y, count: m?.count ?? msg.slot + 1, name: msg.name, hue: msg.hue }));
           // after a reconnect the server has forgotten the open tab view
           if (tabOpenRef.current) conn.current?.send({ t: 'tab', on: true });
+          if (jamModeRef.current) conn.current?.send({ t: 'jam', on: true });
         } else if (msg.t === 'place') {
           setMe((m) => (m ? { ...m, slot: msg.slot, x: msg.x, y: msg.y, count: msg.count } : m));
         } else if (msg.t === 'full') {
@@ -93,6 +105,10 @@ export function App() {
           setTab(msg);
         } else if (msg.t === 'clock') {
           setClock({ msg, at: performance.now() });
+        } else if (msg.t === 'jam') {
+          setJamState(msg);
+        } else if (msg.t === 'jbeat') {
+          setJamBeat({ msg, at: performance.now() });
         }
       },
       setStatus,
@@ -166,6 +182,7 @@ export function App() {
           </label>
         )}
         <button className="big" onClick={join}>{t.join}</button>
+        <button className="workshop-btn jam-btn" onClick={() => { jamModeRef.current = true; setJamMode(true); void join(); }}>{t.jam}</button>
         <button className="workshop-btn" onClick={() => setMode('workshop')}>{t.workshop}</button>
         <p className="small">{t.privacy}</p>
         <p className="small">
@@ -185,7 +202,9 @@ export function App() {
         {me ? <><span className="youare">{t.youAre}</span> <b className="name">{me.name[lang]}</b><span className="place">{t.place(me.slot, me.count)}</span></> : <span>{waiting ? t.waiting : t.joining}</span>}
         {status !== 'open' && me && <span className="warn">{t.reconnecting}</span>}
         {me && <button className={`tab-toggle${tabOpen ? ' on' : ''}`} onClick={toggleTab}>{t.tab}</button>}
+        {me && <button className={`tab-toggle${tunerOpen ? ' on' : ''}`} onClick={() => setTunerOpen((o) => !o)}>{t.tuner}</button>}
       </header>
+      {tunerOpen && <Suspense fallback={null}><Tuner lang={lang} onClose={() => setTunerOpen(false)} /></Suspense>}
       {full && <p className="warn">{t.full}</p>}
       {status === 'gate-closed' && !me && (
         <p className="warn">{gateOpensAt ? t.gateOpensAt(new Date(gateOpensAt).toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' })) : t.gateClosed}</p>
@@ -203,8 +222,13 @@ export function App() {
       )}
       {!sensors && <p className="warn">{t.sensorsOff}</p>}
       {debugSensors && <p className="small">sensor {m.src ?? '?'} · tilt {m.tx.toFixed(2)} {m.ty.toFixed(2)} · shake {m.sh.toFixed(2)}</p>}
+      {jamMode && me && (
+        <Suspense fallback={<p className="small">…</p>}>
+          <JamView lang={lang} state={jamState} beat={jamBeat} send={(msg) => conn.current?.send(msg as PhoneMessage)} onLeave={leaveJam} />
+        </Suspense>
+      )}
       {tabOpen && <TabView tab={tab} clock={clock} texts={t} />}
-      <div
+      {!jamMode && <div
         className={`pad${tabOpen ? ' small-pad' : ''}`}
         onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); onPointer(e, true); }}
         onPointerMove={(e) => { if (touch.current.to) onPointer(e, true); }}
@@ -220,7 +244,7 @@ export function App() {
           }}
         />
         <p className="hint">{t.hint}</p>
-      </div>
+      </div>}
       {emojis && <nav className="emojis">
         {EMOJIS.map((e, i) => (
           <button key={e} onClick={() => { conn.current?.send({ t: 'emo', e: i }); navigator.vibrate?.(15); }}>{e}</button>

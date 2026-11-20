@@ -14,7 +14,14 @@ export type PhoneMessage =
   /** an emoji from the fixed list (index) */
   | { t: 'emo'; e: number }
   /** the bass tab view opened (on) or closed: only then the server sends the tab and its clock (2026-11-19) */
-  | { t: 'tab'; on: boolean };
+  | { t: 'tab'; on: boolean }
+  /** the Jam (2026-11-20, src/jam): the screen opened/closed, a track picked (-1: none), a pad (p) pressed (on 1) or
+   *  released (with an optional velocity v 0..1), a knob (k) moved (v 0..1), a clip (c) launched */
+  | { t: 'jam'; on: boolean }
+  | { t: 'jt'; k: number }
+  | { t: 'jn'; p: number; on: 0 | 1; v?: number }
+  | { t: 'jk'; k: number; v: number }
+  | { t: 'jc'; c: number };
 
 /** The playing bass tab, compact (server -> a phone with the tab view open, once per track). */
 export interface TabMsg {
@@ -34,6 +41,9 @@ export interface TabMsg {
  *  f folder, p playing, c the song's bar - 1 (fractional, at reception), s cycles per second. */
 export interface TabClockMsg { t: 'clock'; f: string; p: 0 | 1; c: number; s: number }
 
+import type { JamBeatMsg, JamStateMsg } from '../jam/jam';
+export type { JamBeatMsg, JamStateMsg };
+
 /** Server -> one phone. */
 export type ServerMessage =
   /** answer to hello: the phone's slot, place in the grid (0..1) and random name */
@@ -49,7 +59,9 @@ export type ServerMessage =
   /** the emoji row shown or hidden (2026-11-17): on when the track Cinder plays opens it, or the operator does */
   | { t: 'emojis'; on: boolean }
   | TabMsg
-  | TabClockMsg;
+  | TabClockMsg
+  | JamStateMsg
+  | JamBeatMsg;
 
 /** The fixed emoji list: the phone sends an index, never text. */
 export const EMOJIS = ['🔥', '😍', '🤯', '👏', '🚀', '🌀', '💜', '🎛️'] as const;
@@ -90,6 +102,21 @@ export function parsePhoneMessage(raw: string): PhoneMessage | undefined {
     }
     case 'tab':
       return typeof o.on === 'boolean' ? { t: 'tab', on: o.on } : undefined;
+    case 'jam':
+      return typeof o.on === 'boolean' ? { t: 'jam', on: o.on } : undefined;
+    case 'jt':
+      return typeof o.k === 'number' && Number.isInteger(o.k) && o.k >= -1 && o.k < 64 ? { t: 'jt', k: o.k } : undefined;
+    case 'jn': {
+      if (typeof o.p !== 'number' || !Number.isInteger(o.p) || o.p < 0 || o.p > 63 || (o.on !== 0 && o.on !== 1)) return undefined;
+      const v = num(o.v, 0, 1);
+      return v === undefined ? { t: 'jn', p: o.p, on: o.on } : { t: 'jn', p: o.p, on: o.on, v };
+    }
+    case 'jk': {
+      const v = num(o.v, 0, 1);
+      return typeof o.k === 'number' && Number.isInteger(o.k) && o.k >= 0 && o.k < 8 && v !== undefined ? { t: 'jk', k: o.k, v } : undefined;
+    }
+    case 'jc':
+      return typeof o.c === 'number' && Number.isInteger(o.c) && o.c >= 0 && o.c < 16 ? { t: 'jc', c: o.c } : undefined;
     default:
       return undefined;
   }

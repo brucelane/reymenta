@@ -33,10 +33,10 @@ function setArrangerEvents(track: string, events: string): string {
 }
 
 const timeSig = `<TimeSignature><TimeSignatures><RemoteableTimeSignature Id="0"><Numerator Value="4" /><Denominator Value="4" /><Time Value="0" /></RemoteableTimeSignature></TimeSignatures></TimeSignature>`;
-const clipCommon = (name: string, end: number, color: number) => `
+const clipCommon = (name: string, end: number, color: number, loop = false) => `
 <LomId Value="0" /><LomIdView Value="0" />
 <CurrentStart Value="0" /><CurrentEnd Value="${n(end)}" />
-<Loop><LoopStart Value="0" /><LoopEnd Value="${n(end)}" /><StartRelative Value="0" /><LoopOn Value="false" /><OutMarker Value="${n(end)}" /><HiddenLoopStart Value="0" /><HiddenLoopEnd Value="${n(end)}" /></Loop>
+<Loop><LoopStart Value="0" /><LoopEnd Value="${n(end)}" /><StartRelative Value="0" /><LoopOn Value="${loop}" /><OutMarker Value="${n(end)}" /><HiddenLoopStart Value="0" /><HiddenLoopEnd Value="${n(end)}" /></Loop>
 <Name Value="${esc(name)}" /><Annotation Value="" /><Color Value="${color}" />
 <LaunchMode Value="0" /><LaunchQuantisation Value="0" />
 ${timeSig}
@@ -53,7 +53,7 @@ ${timeSig}
 <ScaleInformation><Root Value="0" /><Name Value="0" /></ScaleInformation>
 <AutomationEnvelopesListWrapper LomId="0" />`;
 
-function midiClip(part: ExportPart, end: number, color: number): string {
+function midiClip(part: ExportPart, end: number, color: number, loop = false): string {
   const byKey = new Map<number, ExportNote[]>();
   for (const nt of part.notes) {
     const k = Math.max(0, Math.min(127, Math.round(nt.key)));
@@ -74,7 +74,7 @@ function midiClip(part: ExportPart, end: number, color: number): string {
       return `<KeyTrack Id="${i}"><Notes>${events}</Notes><MidiKey Value="${key}" /></KeyTrack>`;
     })
     .join('');
-  return `<MidiClip Id="0" Time="0">${clipCommon(part.name, end, color)}
+  return `<MidiClip Id="0" Time="0">${clipCommon(part.name, end, color, loop)}
 <Notes><KeyTracks>${keyTracks}</KeyTracks><PerNoteEventStore><EventLists /></PerNoteEventStore><NoteProbabilityGroups /><ProbabilityGroupIdGenerator><NextId Value="1" /></ProbabilityGroupIdGenerator><NoteIdGenerator><NextId Value="${noteId}" /></NoteIdGenerator></Notes>
 <BankSelectCoarse Value="-1" /><BankSelectFine Value="-1" /><ProgramChange Value="-1" />
 <NoteEditorFoldInZoom Value="-1" /><NoteEditorFoldInScroll Value="0" /><NoteEditorFoldOutZoom Value="867" /><NoteEditorFoldOutScroll Value="-353" /><NoteEditorFoldScaleZoom Value="-1" /><NoteEditorFoldScaleScroll Value="0" />
@@ -83,6 +83,46 @@ function midiClip(part: ExportPart, end: number, color: number): string {
 </MidiClip>`;
 }
 
+// ---------------------------------------------------------------- Session view (2026-11-20)
+
+/** `count` empty clip slots, as the template writes them. */
+const emptySlot = (i: number, value = '') =>
+  `<ClipSlot Id="${i}"><LomId Value="0" /><ClipSlot>${value ? `<Value>${value}</Value>` : '<Value />'}</ClipSlot><HasStop Value="true" /></ClipSlot>`;
+const slotList = (count: number, values: string[] = []) =>
+  `<ClipSlotList>${Array.from({ length: count }, (_, i) => emptySlot(i, values[i])).join('')}</ClipSlotList>`;
+
+/** The track's MainSequencer clip slots filled with `values` (one per scene). */
+function setSessionClips(track: string, count: number, values: string[]): string {
+  const seq = track.indexOf('<MainSequencer>');
+  if (seq < 0) return track;
+  const rest = track.slice(seq).replace(/<ClipSlotList>[\s\S]*?<\/ClipSlotList>|<ClipSlotList\s*\/>/, slotList(count, values));
+  return track.slice(0, seq) + rest;
+}
+
+/** A part's notes inside [start, end) as a session clip starting at 0. */
+function sessionClip(part: ExportPart, scene: { name: string; start: number; end: number }, color: number): string | undefined {
+  const notes = part.notes
+    .filter((x) => x.beat >= scene.start - 1e-6 && x.beat < scene.end - 1e-6)
+    .map((x) => ({ ...x, beat: x.beat - scene.start, dur: Math.min(x.dur, scene.end - x.beat) }));
+  if (!notes.length) return undefined;
+  return midiClip({ ...part, name: `${part.name} ${scene.name}`, notes }, scene.end - scene.start, color, true);
+}
+
+/** The scenes, cloned from the template's first one (names set), at least `min` of them. */
+function setScenes(xml: string, scenes: { name: string }[], min: number): string {
+  const m = /<Scenes>([\s\S]*?)<\/Scenes>/.exec(xml);
+  const first = m && /<Scene Id="\d+">[\s\S]*?<\/Scene>/.exec(m[1]);
+  if (!m || !first) throw new Error('template without scenes');
+  const count = Math.max(min, scenes.length);
+  const list = Array.from({ length: count }, (_, i) => first[0]
+    .replace(/<Scene Id="\d+">/, `<Scene Id="${i}">`)
+    .replace(/<Name Value="[^"]*" \/>/, `<Name Value="${esc(scenes[i]?.name ?? '')}" />`)).join('');
+  return xml.slice(0, m.index) + `<Scenes>${list}</Scenes>` + xml.slice(m.index + m[0].length);
+}
+
+/** The track's speaker (mixer on/off) off. */
+const mute = (track: string) => track.replace(/(<Speaker>\s*<LomId Value="0" \/>\s*<Manual Value=")true(")/, '$1false$2');
+
 /**
  * The set's XML: the template's MIDI and audio tracks replaced by one MIDI track per part (with notes) holding one
  * arrangement clip over the whole song, the tempo, the locators, NextPointeeId moved on. Throws on a template that
@@ -90,6 +130,13 @@ function midiClip(part: ExportPart, end: number, color: number): string {
  */
 export function writeAlsXml(template: string, song: ExportSong): string {
   let xml = template;
+  if (!/<MidiTrack[\s>]/.test(xml) || !/<AudioTrack[\s>]/.test(xml)) throw new Error('template needs one MIDI track and one audio track');
+  // Session view (2026-11-20): every clip slot list (tracks, returns, main) sized to the scenes, then filled per track
+  const sceneCount = Math.max(8, song.scenes?.length ?? 0);
+  if (song.scenes?.length) {
+    xml = setScenes(xml, song.scenes, 8);
+    xml = xml.replace(/<ClipSlotList>[\s\S]*?<\/ClipSlotList>/g, slotList(sceneCount));
+  }
   const midiT = /<MidiTrack[\s>][\s\S]*?<\/MidiTrack>/.exec(xml);
   const audioT = /<AudioTrack[\s>][\s\S]*?<\/AudioTrack>/.exec(xml);
   if (!midiT || !audioT) throw new Error('template needs one MIDI track and one audio track');
@@ -104,6 +151,8 @@ export function writeAlsXml(template: string, song: ExportSong): string {
     let t = renumber(midiT[0], next).replace(/<MidiTrack Id="\d+"/, `<MidiTrack Id="${trackId++}"`);
     t = setName(t, part.name);
     t = setArrangerEvents(t, midiClip(part, song.beats, color));
+    if (song.scenes?.length) t = setSessionClips(t, sceneCount, song.scenes.map((sc) => sessionClip(part, sc, color) ?? ''));
+    if (song.muted?.includes(part.name)) t = mute(t);
     tracks.push(t);
   });
   if (!tracks.length) throw new Error('nothing to export');
@@ -127,6 +176,11 @@ export function writeAlsXml(template: string, song: ExportSong): string {
     .map((l, i) => `<Locator Id="${i}"><LomId Value="0" /><Time Value="${n(l.beat)}" /><Name Value="${esc(l.name)}" /><Annotation Value="" /><IsSongStart Value="false" /></Locator>`)
     .join('');
   xml = xml.replace(/<Locators>\s*<Locators\s*\/>\s*<\/Locators>/, `<Locators><Locators>${locs}</Locators></Locators>`);
+  // the arrangement loop (2026-11-20: the practice set)
+  if (song.loop) {
+    xml = xml.replace(/(<Transport>[\s\S]*?<LoopOn Value=")[^"]*("[\s\S]*?<LoopStart Value=")[^"]*("[\s\S]*?<LoopLength Value=")[^"]*(")/,
+      `$1true$2${n(song.loop.start)}$3${n(song.loop.length)}$4`);
+  }
   xml = xml.replace(/<NextPointeeId Value="\d+"/, `<NextPointeeId Value="${next.id}"`);
   const seen = new Set<string>();
   for (const m of xml.matchAll(POINTEE)) {

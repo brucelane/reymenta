@@ -8,6 +8,8 @@ import WebSocket from 'ws';
 export interface CinderLink {
   /** Sends uniform values (index -> value); dropped while disconnected. */
   sendUniforms(values: Array<{ name: number; value: number }>): void;
+  /** Any message for TSWebsocketServer (the Jam's MIDI: {"event":"midimsg",...}); false while disconnected. */
+  sendRaw(msg: unknown): boolean;
   readonly connected: boolean;
   close(): void;
 }
@@ -58,6 +60,11 @@ export function connectCinder(
     sendUniforms(values) {
       if (!connected || !ws || values.length === 0) return;
       ws.send(JSON.stringify({ params: values }));
+    },
+    sendRaw(msg) {
+      if (!connected || !ws) return false;
+      ws.send(JSON.stringify(msg));
+      return true;
     },
     get connected() { return connected; },
     close() { closed = true; if (timer) clearTimeout(timer); ws?.close(); },

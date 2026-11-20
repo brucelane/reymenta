@@ -75,5 +75,11 @@ button:active { background: #22222b; }
 .tab-head { stroke: var(--me); stroke-width: 2; }
 .pad.small-pad { flex: 0 0 120px; }
 .tab-fret.tab-warn { fill: #e0a040; }
+/* practice (2026-11-20): what the microphone heard, the note to play now and next */
+.tab-fret.tab-hit { fill: #4d9; }
+.tab-fret.tab-miss { fill: #f07070; }
+.tab-fret.tab-now { fill: #fff; font-size: 16px; }
+.tab-fret.tab-next { fill: #9ad; }
 /* the start screen's second choice: the Workshop (lazy-loaded, web/src/workshop) */
 .workshop-btn { font-size: 15px; padding: 10px 18px; color: var(--text); }
+.jam-btn { border-color: hsl(280 70% 60%); color: var(--text); }

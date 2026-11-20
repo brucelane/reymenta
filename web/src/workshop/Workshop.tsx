@@ -16,17 +16,21 @@ import { starterSketch, validateHydra } from './hydra';
 import { download, loadLibrary, loadText, saveLibrary, saveText } from './storage';
 import { wtexts, type WTexts } from './texts';
 import { TrackScreen } from './TrackScreen';
+import type { AlsMidiTrack } from './alsTab';
+import { keyName as alsKeyName } from '../tuner/pitch';
 import './workshop.css';
 
 // hydra-synth and its editor: only when a sketch opens (step 5)
 const HydraSection = lazy(() => import('./HydraSection'));
 // strudel-flow and pasted grooves (step 6)
 const GroovesScreen = lazy(() => import('./GroovesScreen'));
+// the tuner (2026-11-20), shared with the Show page
+const Tuner = lazy(() => import('../tuner/Tuner'));
 
 type Screen =
   | { s: 'home' } | { s: 'setlists' } | { s: 'setlist'; name: string; pub?: boolean } | { s: 'tracks' }
   | { s: 'track'; folder: string } | { s: 'fretboard'; folder?: string } | { s: 'artists' } | { s: 'about' } | { s: 'data' }
-  | { s: 'sketches' } | { s: 'sketch'; id: string } | { s: 'grooves' };
+  | { s: 'sketches' } | { s: 'sketch'; id: string } | { s: 'grooves' } | { s: 'tuner' };
 
 const LAN_HOST = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
 const bundled = validateArtists(artistsJson);
@@ -115,6 +119,7 @@ export default function Workshop({ lang, langSwitch, onShow }: { lang: Lang; lan
     <header className="ws-head">
       {stack.length > 1 ? <button onClick={back} aria-label={t.back}>‹</button> : <span className="ws-brand">{t.title}</span>}
       <span className="ws-head-title">{stack.length > 1 ? screenTitle(screen, t, lib) : ''}</span>
+      {screen.s !== 'tuner' && <button onClick={() => go({ s: 'tuner' })} aria-label={t.tuner}>𝄞</button>}
       <button onClick={onShow}>{t.show}</button>
       {langSwitch}
     </header>
@@ -130,6 +135,7 @@ export default function Workshop({ lang, langSwitch, onShow }: { lang: Lang; lan
           <button onClick={() => go({ s: 'setlists' })}>{t.setlists}</button>
           <button onClick={() => go({ s: 'tracks' })}>{t.tracks}</button>
           <button onClick={() => go({ s: 'fretboard' })}>{t.fretboard}</button>
+          <button onClick={() => go({ s: 'tuner' })}>{t.tuner}</button>
           <button onClick={() => go({ s: 'sketches' })}>{t.sketches}</button>
           <button onClick={() => go({ s: 'grooves' })}>{t.grooves}</button>
           <button onClick={() => go({ s: 'artists' })}>{t.artists}</button>
@@ -159,6 +165,9 @@ export default function Workshop({ lang, langSwitch, onShow }: { lang: Lang; lan
     case 'track':
       body = <TrackScreen t={t} lang={lang} lib={lib} folder={screen.folder} cat={cat} setLib={setLib} update={update}
         fretboard={() => go({ s: 'fretboard', folder: screen.folder })} deleted={back} />;
+      break;
+    case 'tuner':
+      body = <Suspense fallback={<p className="ws-dim">{t.loading}</p>}><Tuner lang={lang} /></Suspense>;
       break;
     case 'fretboard':
       body = <FretboardScreen t={t} lang={lang} track={screen.folder ? lib.tracks.find((x) => x.folder === screen.folder) : undefined} />;
@@ -217,6 +226,7 @@ function screenTitle(s: Screen, t: WTexts, lib?: Library): string {
     case 'tracks': return t.tracks;
     case 'track': return lib?.tracks.find((x) => x.folder === s.folder)?.title ?? s.folder;
     case 'fretboard': return t.fretboard;
+    case 'tuner': return t.tuner;
     case 'artists': return t.artists;
     case 'about': return t.about;
     case 'data': return t.data;
@@ -383,6 +393,19 @@ function DataScreen({ t, lib, setLib }: { t: WTexts; lib: Library; setLib: (l: L
   const [msg, setMsg] = useState('');
   const [pending, setPending] = useState<{ incoming: Partial<Library>; names: string[]; skipped: number } | undefined>();
   const [tabFor, setTabFor] = useState<Extract<Detected, { kind: 'tab' }> | undefined>();
+  // an Ableton set (2026-11-20): its MIDI tracks, to pick the bass
+  const [als, setAls] = useState<{ name: string; xml: string; tracks: AlsMidiTrack[]; guess?: number } | undefined>();
+  const pickAls = async (index: number) => {
+    if (!als) return;
+    try {
+      const { alsToTab } = await import('./alsTab');
+      const tab = await alsToTab(als.xml, index, als.name);
+      setAls(undefined);
+      setTabFor({ kind: 'tab', tab });
+    } catch (e) {
+      setMsg(t.importError((e as Error)?.message ?? String(e)));
+    }
+  };
   const apply = (incoming: Partial<Library>, choice: MergeChoice, skipped = 0) => {
     const r = merge(lib, incoming, choice);
     setLib(r.library);
@@ -399,6 +422,18 @@ function DataScreen({ t, lib, setLib }: { t: WTexts; lib: Library; setLib: (l: L
     setMsg('');
     if (!file) return;
     if (file.size > 32 * 1024 * 1024) return setMsg(t.importError('> 32 MB'));
+    if (/\.als$/i.test(file.name)) {
+      try {
+        const { alsMidiTracks, alsText, guessBass } = await import('./alsTab');
+        const xml = await alsText(new Uint8Array(await file.arrayBuffer()));
+        if (!xml.includes('<Ableton')) return setMsg(t.importError('not an Ableton set'));
+        const tracks = alsMidiTracks(xml).filter((x) => x.notes > 0);
+        if (!tracks.length) return setMsg(t.importError(t.alsNoMidi));
+        return setAls({ name: file.name, xml, tracks, guess: guessBass(tracks) });
+      } catch (e) {
+        return setMsg(t.importError((e as Error)?.message ?? String(e)));
+      }
+    }
     const d = detectImport(await file.text());
     if (d.kind === 'unknown') return setMsg(t.importError(d.error));
     if (d.kind === 'library') return offer(d.library, d.skipped);
@@ -426,7 +461,7 @@ function DataScreen({ t, lib, setLib }: { t: WTexts; lib: Library; setLib: (l: L
       {isNativeApp && <p className="ws-dim ws-small">{t.downloadNote}</p>}
       <label className="ws-file">
         {t.importFile}
-        <input type="file" accept=".json,application/json" onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ''; }} />
+        <input type="file" accept=".json,application/json,.als" onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ''; }} />
       </label>
       <p className="ws-dim ws-small">{t.importHelp}</p>
       {pending && (
@@ -437,6 +472,18 @@ function DataScreen({ t, lib, setLib }: { t: WTexts; lib: Library; setLib: (l: L
             <button onClick={() => apply(pending.incoming, 'keep', pending.skipped)}>{t.keepBoth}</button>
             <button onClick={() => setPending(undefined)}>{t.cancel}</button>
           </div>
+        </div>
+      )}
+      {als && (
+        <div className="ws-picker">
+          <p>{t.alsPick(als.name)}</p>
+          {[...als.tracks].sort((a, b) => (a.index === als.guess ? -1 : b.index === als.guess ? 1 : a.index - b.index)).map((x) => (
+            <button key={x.index} className={`ws-row${x.index === als.guess ? ' on' : ''}`} onClick={() => void pickAls(x.index)}>
+              <span>{x.name || `MIDI ${x.index + 1}`}{x.index === als.guess ? ` (${t.alsGuess})` : ''}</span>
+              <span className="ws-dim ws-small">{t.alsNotes(x.notes)} · {alsKeyName(x.avgKey)}</span>
+            </button>
+          ))}
+          <button onClick={() => setAls(undefined)}>{t.cancel}</button>
         </div>
       )}
       {tabFor && (

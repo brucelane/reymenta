@@ -31,6 +31,12 @@ export interface ExportSong {
   beats: number;
   locators: { beat: number; name: string }[];
   parts: ExportPart[];
+  /** (2026-11-20) Session view: one scene per section, each part's notes of that section as a looping clip */
+  scenes?: { name: string; start: number; end: number }[];
+  /** (2026-11-20) the arrangement loop (beats), switched on */
+  loop?: { start: number; length: number };
+  /** (2026-11-20) parts muted in Live (their track's speaker off) */
+  muted?: string[];
 }
 export interface ExportHap { begin: number; end?: number; value: Record<string, unknown> }
 
@@ -231,3 +237,57 @@ export function songToMidiFile(song: ExportSong): Uint8Array {
 
 /** A file name from a folder ("hexbolt" -> "hexbolt.mid"). */
 export const safeName = (s: string) => s.replace(/[^\w .()+-]+/g, '_').replace(/^\.+/, '').trim() || 'track';
+
+// ---------------------------------------------------------------- Ableton extras (2026-11-20)
+
+/** GM's hi / low wood block: the click's accent and its other beats (Live's Drum Racks put a sound there or not). */
+export const CLICK_KEYS = { accent: 76, beat: 77 };
+
+/** A click track: every beat over `beats` (eighths for an odd meter like 7/8), the bar's first one accented. */
+export function clickPart(beats: number, beatsPerBar: number, from = 0): ExportPart {
+  const step = Number.isInteger(beatsPerBar) ? 1 : 0.5;
+  const notes: ExportNote[] = [];
+  for (let bar = from; bar < beats - 1e-9; bar += beatsPerBar) {
+    for (let b = 0; b < beatsPerBar - 1e-9 && bar + b < beats - 1e-9; b += step) {
+      notes.push({ beat: r6(bar + b), dur: 0.25, key: b === 0 ? CLICK_KEYS.accent : CLICK_KEYS.beat, vel: b === 0 ? 120 : 90 });
+    }
+  }
+  return { name: 'click', notes, drum: true };
+}
+
+/** Everything moved `bars` bars later (a count-in at the start), the click (if any) filling the new bars too. */
+export function withCountIn(song: ExportSong, bars: number): ExportSong {
+  const shift = Math.max(0, Math.round(bars)) * song.beatsPerBar;
+  if (!shift) return song;
+  const parts = song.parts.map((p) => (p.name === 'click'
+    ? clickPart(song.beats + shift, song.beatsPerBar)
+    : { ...p, notes: p.notes.map((n) => ({ ...n, beat: r6(n.beat + shift) })) }));
+  return {
+    ...song, beats: song.beats + shift, parts,
+    locators: [{ beat: 0, name: '#count-in' }, ...song.locators.map((l) => ({ ...l, beat: l.beat + shift }))],
+    scenes: song.scenes?.map((s) => ({ ...s, start: s.start + shift, end: s.end + shift })),
+    loop: song.loop && { ...song.loop, start: song.loop.start + shift },
+  };
+}
+
+/** One scene per section (the locators; before the first one: "start"), whole song when there's none. */
+export function sectionScenes(song: ExportSong): { name: string; start: number; end: number }[] {
+  const locs = song.locators.filter((l) => l.beat >= 0 && l.beat < song.beats).sort((a, b) => a.beat - b.beat);
+  const marks = locs.length && locs[0].beat > 0 ? [{ beat: 0, name: 'start' }, ...locs] : locs;
+  if (!marks.length) return [{ name: song.title || 'song', start: 0, end: song.beats }];
+  return marks
+    .map((l, i) => ({ name: l.name.replace(/^#/, ''), start: l.beat, end: marks[i + 1]?.beat ?? song.beats }))
+    .filter((s) => s.end - s.start > 1e-6);
+}
+
+/**
+ * A practice set: the tempo at `rate`, the arrangement loop on bars [fromBar, fromBar + bars), the bass tab's track
+ * muted (to play it yourself over the rest), a click track.
+ */
+export function practiceSong(song: ExportSong, o: { fromBar: number; bars: number; rate: number; muteBass: boolean; click: boolean }): ExportSong {
+  const parts = o.click && !song.parts.some((p) => p.name === 'click') ? [...song.parts, clickPart(song.beats, song.beatsPerBar)] : song.parts;
+  const start = Math.max(0, Math.floor(o.fromBar)) * song.beatsPerBar;
+  const length = Math.max(1, Math.floor(o.bars)) * song.beatsPerBar;
+  const muted = o.muteBass ? parts.filter((p) => p.name === 'tabbass' || /bass/i.test(p.name)).map((p) => p.name) : [];
+  return { ...song, title: `${song.title} (practice)`, bpm: r6(song.bpm * Math.max(0.25, Math.min(1.5, o.rate))), parts, loop: { start, length }, muted };
+}

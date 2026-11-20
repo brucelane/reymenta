@@ -138,3 +138,24 @@
 .ws-hydra-keys { flex-wrap: wrap; }
 .ws-hydra-keys-error { flex-basis: 100%; margin: 0; padding: 2px 6px; font-size: 13px; color: #fff; background: rgba(160, 20, 20, 0.9); border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ws-hydra-keys .ws-hydra-keys-scroll { flex: 1 1 0; min-width: 0; }
+/* practice (2026-11-20): now / next boxes, the neck, the count-in, the score */
+.ws-practice { display: flex; flex-direction: column; gap: 8px; }
+.ws-form .ws-check { flex-direction: row; align-self: end; }
+.ws-countdown { font-size: 40px; font-weight: 700; text-align: center; margin: 0; color: var(--me); }
+.ws-nownext { display: grid; grid-template-columns: 3fr 2fr; gap: 8px; }
+.ws-notebox { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px; border: 1px solid #2a2a33; border-radius: 12px; }
+.ws-notebox b { font-size: 28px; line-height: 1.1; color: #9ad; }
+.ws-notebox.big { border-color: var(--me); }
+.ws-notebox.big b { font-size: 44px; color: #fff; }
+.ws-neck { overflow-x: auto; }
+.ws-neck svg { width: 100%; display: block; }
+.neck-nut { stroke: #ccc; stroke-width: 4; }
+.neck-fret { stroke: #3a3a46; stroke-width: 1.5; }
+.neck-string { stroke: #888; }
+.neck-dot { fill: #2a2a33; }
+.neck-name { fill: var(--dim); font-size: 11px; }
+.neck-now { fill: var(--me); }
+.neck-next { fill: none; stroke: #9ad; stroke-width: 2; stroke-dasharray: 3 2; }
+.neck-finger { fill: #000; font-size: 12px; font-weight: 700; text-anchor: middle; }
+.ws-score { padding: 8px 10px; border: 1px solid #2a2a33; border-radius: 12px; }
+.ws-score p { margin: 2px 0; }

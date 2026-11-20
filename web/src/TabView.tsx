@@ -13,9 +13,11 @@ const TOP = 16; // room for the section name and the bar number
 const ROW_H = TOP + 3 * GAP + 12;
 const W = 400; // viewBox width of a bar
 
-/** With `bar`, a still view from that bar (the Workshop: no clock, no playhead); `marks` = note indexes drawn as warnings. */
-export function TabView({ tab, clock, texts, bar: fixedBar, marks }: {
+/** With `bar`, a still view from that bar (the Workshop: no clock, no playhead); `marks` = note indexes drawn as warnings;
+ *  `tones` = a class per note index (practice, 2026-11-20: tab-hit, tab-miss, tab-now, tab-next). */
+export function TabView({ tab, clock, texts, bar: fixedBar, marks, tones }: {
   tab?: TabMsg; clock?: ClockAt; texts: { tabWaiting: string; tabNone: string; tabStopped: string }; bar?: number; marks?: Set<number>;
+  tones?: Map<number, string>;
 }) {
   const [now, setNow] = useState(() => performance.now());
   const playing = clock?.msg.p === 1;
@@ -85,7 +87,7 @@ export function TabView({ tab, clock, texts, bar: fixedBar, marks }: {
             {(bars.get(b) ?? []).map(({ n: [beat, string, fret], i }) => (
               <g key={i}>
                 <rect x={x(beat - start) - 6} y={y(string) - 7} width={12} height={14} className="tab-bg" />
-                <text x={x(beat - start)} y={y(string) + 4} className={`tab-fret${marks?.has(i) ? ' tab-warn' : ''}`}>{fret}</text>
+                <text x={x(beat - start)} y={y(string) + 4} className={`tab-fret${marks?.has(i) ? ' tab-warn' : ''}${tones?.has(i) ? ` ${tones.get(i)}` : ''}`}>{fret}</text>
               </g>
             ))}
             {r === 0 && fixedBar === undefined && <line x1={x((cycle - b) * tab.bb)} x2={x((cycle - b) * tab.bb)} y1={4} y2={ROW_H - 4} className="tab-head" />}

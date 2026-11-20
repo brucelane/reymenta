@@ -21,6 +21,9 @@ import { parsePhoneMessage } from '../room/protocol';
 import { IAUD0, Room, type Outgoing } from '../room/room';
 import { connectCinder } from './cinder';
 import { connectCloud } from './cloud';
+import { validateJam, rootOf } from '../jam/config';
+import { Jam } from '../jam/jam';
+import { startLink, type LinkPoller } from './link';
 import { TabFollow } from './tabFollow';
 import { defaultLibraryDir, handleLibrary } from './library';
 
@@ -84,6 +87,7 @@ const cloud = setting('PUBSUB_CONNECTION_STRING')
       if (msg.t === 'emo' && !emojisOn()) return;
       if (msg.t === 'hello') cloudPhones.add(userId);
       if (msg.t === 'tab') onTabView(userId, msg.on);
+      if (msg.t.startsWith('j')) { onJam(userId, msg); if (msg.t !== 'jam') return; }
       deliver(room.receive(userId, msg, now));
     }, log)
   : undefined;
@@ -157,6 +161,78 @@ function sendTab(only?: string) {
   }
 }
 
+// Ableton Link (2026-11-20, optional: LINK=1 and the native module, link.ts): the tab follows Live's tempo and start/stop
+let link: LinkPoller | undefined;
+if (process.env.LINK === '1') {
+  if (process.env.LINK_FOLDER) tabFollow.linkFolder = process.env.LINK_FOLDER;
+  const from = Number(process.env.LINK_FROM_BAR);
+  if (from >= 1) tabFollow.linkFromBar = Math.floor(from);
+  void startLink((st) => { if (tabFollow.receiveLink(st)) sendTab(); }).then((r) => {
+    if (typeof r === 'string') log(r);
+    else { link = r; log('Ableton Link on (the tab follows Live while it plays)'); }
+  });
+}
+
+// The Jam (2026-11-20, src/jam, studies/reymenta-jam.md): phones play the organiser's Live template through
+// TSWebsocketServer's MIDI ({"event":"midimsg"} on the MIDI output named in jam.json), notes on Link's beat grid.
+// Closed until the organiser opens it (POST /admin/jam/on, or JAM_OPEN=1).
+const JAM_FILE = setting('JAM_FILE') || join(assetsGlsl, '..', 'jam', 'jam.json');
+let jamError = '';
+function loadJam() {
+  try {
+    const v = validateJam(JSON.parse(readFileSync(JAM_FILE, 'utf8')));
+    if (typeof v === 'string') { jamError = v; return undefined; }
+    jamError = '';
+    return v;
+  } catch (e) {
+    jamError = (e as Error).message;
+    return undefined;
+  }
+}
+const jamConfig = loadJam();
+if (!jamConfig) log(`jam: ${JAM_FILE}: ${jamError}`);
+const jam = jamConfig
+  ? new Jam(
+      jamConfig,
+      (messages, delay) => {
+        const send = () => { cinder.sendRaw({ event: 'midimsg', port: jam!.cfg.port, messages }); };
+        if (delay > 0) setTimeout(send, delay); else send();
+      },
+      () => {
+        const st = link?.state();
+        return st && st.peers > 0 ? { beat: st.beat, bpm: st.tempo, playing: st.playing } : undefined;
+      },
+      Date.now,
+      setting('JAM_OPEN') === '1',
+    )
+  : undefined;
+const jamPhones = new Set<string>();
+let jamDirty = false;
+function sendJamState(only?: string) {
+  if (!jam) return;
+  for (const id of jamPhones) if (!only || id === only) sendTo(id, jam.state(id));
+}
+function onJam(id: string, msg: ReturnType<typeof parsePhoneMessage>) {
+  if (!msg || !jam) {
+    if (msg?.t === 'jam' && msg.on) sendTo(id, { t: 'jam', on: false, title: '', root: 0, mode: 'minor', steps: [], bpm: 120, link: false, tracks: [], mine: -1 });
+    return;
+  }
+  switch (msg.t) {
+    case 'jam':
+      if (msg.on) { jam.join(id); jamPhones.add(id); sendJamState(id); sendTo(id, jam.beat()); } else { jam.leave(id); jamPhones.delete(id); jamDirty = true; }
+      break;
+    case 'jt':
+      if (jam.pick(id, msg.k)) jamDirty = true;
+      sendJamState(id);
+      break;
+    case 'jn': jam.pad(id, msg.p, msg.on === 1, msg.v); break;
+    case 'jk': jam.knob(id, msg.k, msg.v); break;
+    case 'jc': jam.clip(id, msg.c); break;
+    default: break;
+  }
+}
+const jamLeave = (id: string) => { if (jamPhones.delete(id)) { jam?.leave(id); jamDirty = true; } };
+
 function onRelayed(raw: string) {
   if (tabFollow.receive(raw)) sendTab();
 }
@@ -199,6 +275,28 @@ const http = createServer((req, res) => {
   if (handleLibrary(LIBRARY_DIR, req, res)) return;
   // admin (Show-Access.ps1): this PC only, with TSWebsocketServer's token when it has one
   const emojiCmd = /^\/admin\/emojis\/(on|off|auto)$/.exec(req.url ?? '');
+  // the Jam (2026-11-20): on | off | reload | clip/<track>/<clip>/on|off | scale/<root>/<mode>
+  const jamCmd = /^\/admin\/jam\/(on|off|reload|clip\/(\d+)\/(\d+)\/(on|off)|scale\/([A-Ga-g][#b]?)\/(\w+))$/.exec(req.url ?? '');
+  if (jamCmd) {
+    if (req.method !== 'POST' || !isLocal(req.socket.remoteAddress) || (ADMIN_TOKEN && req.headers['x-token'] !== ADMIN_TOKEN)) {
+      res.writeHead(403).end();
+      return;
+    }
+    const answer = (code: number, body: unknown) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
+    if (!jam && jamCmd[1] !== 'reload') return answer(409, { error: `no jam: ${jamError}` });
+    let ok = true;
+    if (jamCmd[1] === 'on' || jamCmd[1] === 'off') { jam!.setOpen(jamCmd[1] === 'on'); log(`jam ${jamCmd[1].toUpperCase()}`); }
+    else if (jamCmd[1] === 'reload') {
+      const cfg = loadJam();
+      if (!cfg) return answer(400, { error: jamError });
+      if (!jam) return answer(409, { error: 'the server started without a jam file: restart it' });
+      jam.reload(cfg);
+    } else if (jamCmd[2] !== undefined) ok = jam!.setClip(Number(jamCmd[2]), Number(jamCmd[3]), jamCmd[4] === 'on');
+    else ok = jam!.setScale(rootOf(jamCmd[5]) ?? -1, jamCmd[6]);
+    if (!ok) return answer(400, { error: 'no such clip, or an unknown scale' });
+    jamDirty = true;
+    return answer(200, { open: jam!.open, players: jam!.count, state: jam!.state() });
+  }
   if (req.url === '/admin/open' || req.url === '/admin/close' || emojiCmd) {
     if (req.method !== 'POST' || !isLocal(req.socket.remoteAddress) || (ADMIN_TOKEN && req.headers['x-token'] !== ADMIN_TOKEN)) {
       res.writeHead(403).end();
@@ -221,6 +319,8 @@ const http = createServer((req, res) => {
     res.end(JSON.stringify({
       open: showOpen, emojis: { on: emojisOn(), mode: emojiMode, track: cinderFolderName, trackOpens: trackEmojis }, count: room.count, mode: room.mode, cinder: cinder.connected, cloud: cloud ? cloud.link.connected : 'off',
       room: ROOM_NAME, cloudPhones: cloudPhones.size,
+      jam: jam ? { open: jam.open, players: jam.count, title: jam.cfg.title, port: jam.cfg.port } : { error: jamError, file: JAM_FILE },
+      tabClock: tabFollow.source ?? 'none', link: link ? { ...link.state(), folder: tabFollow.linkFolder ?? null } : process.env.LINK === '1' ? 'not available' : 'off',
       aggregates: room.aggregates(Date.now()).slice(0, 16).map((v) => Math.round(v * 1000) / 1000),
     }));
     return;
@@ -251,12 +351,14 @@ wss.on('connection', (ws) => {
     }
     if (!id) return;
     if (msg.t === 'tab') onTabView(id, msg.on);
+    if (msg.t.startsWith('j')) { onJam(id, msg); if (msg.t !== 'jam') return; }
     deliver(room.receive(id, msg, now));
   });
   ws.on('close', () => {
     if (id && sockets.get(id) === ws) {
       sockets.delete(id);
       tabPhones.delete(id);
+      jamLeave(id);
       deliver(room.leave(id));
     }
   });
@@ -267,6 +369,8 @@ wss.on('connection', (ws) => {
 let sent: number[] = [];
 let lastCount = -1;
 let lastTabClock = 0;
+let lastJamBeat = 0;
+let lastJamState = 0;
 setInterval(() => {
   const now = Date.now();
   deliver(room.prune(now));
@@ -280,6 +384,18 @@ setInterval(() => {
   if (changed.length && cinder.connected) {
     cinder.sendUniforms(changed);
     sent = values;
+  }
+  // the Jam: knobs and stuck notes 20 times a second, the beat each second, the state when it changed (2 a second)
+  if (jam) {
+    jam.tick();
+    if (jamPhones.size && now - lastJamBeat >= 1000) {
+      lastJamBeat = now;
+      const inRoom = new Set(room.participants().map((p) => p.id));
+      for (const id of [...jamPhones]) if (!inRoom.has(id)) jamLeave(id);
+      const b = jam.beat();
+      for (const id of jamPhones) sendTo(id, b);
+    }
+    if (jamDirty && now - lastJamState >= 500) { lastJamState = now; jamDirty = false; sendJamState(); }
   }
   // the tab clock once a second while the song plays (phones extrapolate in between)
   if (tabPhones.size && now - lastTabClock >= 1000) {

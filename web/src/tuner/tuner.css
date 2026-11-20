@@ -1,0 +1,29 @@
+/* The tuner (2026-11-20): phone first, dark like the rest of the page. */
+.tuner { display: flex; flex-direction: column; gap: 10px; max-width: 520px; margin: 0 auto; width: 100%; }
+.tuner button { min-height: 40px; }
+.tuner input, .tuner select { font: inherit; font-size: 16px; color: var(--text); background: #15151b; border: 1px solid #2a2a33; border-radius: 10px; padding: 8px 10px; min-width: 0; }
+.tuner-head { display: flex; align-items: center; justify-content: space-between; }
+.tuner-head b { font-size: 18px; }
+.tuner-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.tuner-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--dim); }
+.tuner-seg { display: flex; gap: 4px; align-items: end; }
+.tuner-seg button { flex: 1; }
+.tuner-seg button.on { border-color: var(--me); color: var(--text); }
+.tuner-dial { display: flex; flex-direction: column; align-items: center; padding: 10px; border: 1px solid #2a2a33; border-radius: 16px; }
+.tuner-dial.good { border-color: #3c8; }
+.tuner-note { font-size: 56px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.tuner-dial.good .tuner-note, .tuner-dial.good .tuner-cents { color: #4d9; }
+.tuner-gauge { width: 100%; max-width: 320px; }
+.tuner-tick { stroke: #3a3a46; stroke-width: 2; }
+.tuner-needle { stroke: #e0a040; stroke-width: 4; stroke-linecap: round; transition: all 60ms linear; }
+.tuner-dial.good .tuner-needle { stroke: #4d9; }
+.tuner-needle.idle { stroke: #3a3a46; }
+.tuner-hub { fill: #888; }
+.tuner-cents { min-height: 22px; font-size: 16px; }
+.tuner-strings { display: flex; gap: 6px; }
+.tuner-strings button { flex: 1; font-size: 16px; }
+.tuner-strings button.now { border-color: #e0a040; color: #e0a040; }
+.tuner-strings button.good { border-color: #4d9; color: #4d9; }
+.tuner-main { font-size: 18px; padding: 12px; }
+.tuner-dim { color: var(--dim); font-size: 12px; margin: 0; }
+.tuner-error { color: #f08080; margin: 0; }

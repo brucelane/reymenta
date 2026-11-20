@@ -20,6 +20,34 @@ room's tilt/shake/touch/emoji into Cinder uniforms `iAud0..iAud31` (260..291). O
 - Cinder: `iAud0..31` added in Cinder-VDR `VDUniforms` (2026-11-14), declared in `assets/shadertoy.vd`, named in
   the WebApp's `cinderUniforms.ts`. Test shader: `assets/glsl/audiencetest`.
 
+## Google Play: installing a test build on a phone
+
+The app (`com.videodromm.reymenta`) isn't public: **Play's search never shows it** until production, even to
+testers. A tester gets it only through the track's links, after these steps (release steps and listing:
+`store/google-play/listing.md`):
+
+1. **A release on the track.** Play Console > Test and release > Testing > *Internal testing* (or *Closed testing*)
+   > Create release > upload the AAB (`pnpm deploy:android --release`; a new versionCode each time) > Save > Review
+   > **Start rollout**. Internal: available within minutes, no review. Closed: Google reviews it first (hours to
+   days; Publishing overview shows the state).
+2. **The list ticked on that track.** Same track > *Testers* tab: creating the email list ("reymenta") isn't
+   enough, its **checkbox must be ticked** for this track, then **Save**. Each track (internal, closed) has its own
+   tester selection.
+3. **The opt-in link.** Same *Testers* tab, "Join on the web" / "Copy link"
+   (`https://play.google.com/apps/internaltest/...` for internal, `https://play.google.com/apps/testing/com.videodromm.reymenta`
+   for closed). Open it **signed in with the tester's Google account** (batchass06@gmail.com), in the phone's
+   browser or on a PC, and tap **Become a tester / Accept**.
+4. **Install.** From the opt-in page's "download it on Google Play" link, or
+   `https://play.google.com/store/apps/details?id=com.videodromm.reymenta`. The Play Store app on the phone must be
+   on **that same account** (avatar top right > switch account). "Item not found" = the account isn't on the list,
+   hasn't accepted, or the rollout isn't done yet; wait a few minutes, clear the Play Store's cache, try again.
+5. A **debug APK** already on the phone (`pnpm deploy:android`, other signing key) blocks the Play install:
+   uninstall it first. Updates then come through the Play Store like any app.
+
+Internal testing (up to 100 testers) is for trying builds; it **doesn't count** toward production access. The
+requirement (personal developer account) is the **closed** track: at least 12 testers opted in for 14 days in a
+row. The same email list can be ticked on both tracks; the closed track's opt-in link is the one to share.
+
 ## History
 
 - 2026-11-14: created on the Acer. Milestone 1 (LAN, end to end): checked with 30 fake phones -> server ->
@@ -86,6 +114,54 @@ room's tilt/shake/touch/emoji into Cinder uniforms `iAud0..iAud31` (260..291). O
   pasted code plays, goes into a track's patch (`addToPatch`) or starts a track; a strudel-flow JSON is recognised
   (its generator needs strudel-flow's node registry: not ported). Tests 51/51. Not opened in Live or a DAW yet.
   **Release AAB** built the same day for the Google Play closed test (versionCode 6111906).
+- 2026-11-20 (6.11.20.1): **tuner, practising the tab, Ableton extras, Link.**
+  - Tuner (`web/src/tuner/`: `pitch.ts` McLeod pitch method, 4096-sample window: holds a low B 31 Hz without
+    octave jumps; `mic.ts` microphone without echo cancelling / noise suppression / auto gain, own AudioContext;
+    `Tuner.tsx` needle ±50 cents, green within ±3, by string or chromatic, the fretboard's instruments/tunings, A4
+    432–445, tap a string for its tone). Own chunk (2.3 KB gzip), button on the Show page (next to Bass tab) and in
+    the Workshop (home + header 𝄞).
+  - Practice section of a track (`PracticeSection.tsx`, `practice.ts`, lazy, 6.9 KB): Play along / Listen / Step.
+    The patch chained into a practice pattern (`practiceCode`: parts all / without the bass / bass alone / click,
+    bass = `.color("bass")`; `.ribbon` loop of bars or a section; `.late` count-in with a sine click; `.slow` speed
+    50–110 %); engine `playRaw`; tab with now/next colours, "now / next" boxes (string, fret, finger), the neck.
+    Listen: the microphone against the tab (`Scorer`: ±80 ms before / up to 300 ms after each onset, an octave off
+    accepted, latency setting kept, default 150 ms), score per section, bars missed on the last pass → loop one.
+    Step: nothing plays, the tab waits for each note (`Stepper`: 3 readings, a repeated note needs a new attack).
+    A track with no patch practises over a click at its tempo.
+  - Ableton: Exports have a click track (GM 76/77), a count-in bar, a Session scene per section (every clip slot
+    list resized, each part's section as a looping clip), and a **practice set** (loop on chosen bars, tempo × speed,
+    bass tracks muted, click). Import / export takes an **.als**: its MIDI tracks listed, the bass guessed (name, else
+    lowest), the chosen one read as the tab (`alsTab.ts`: renamed "tabbass" in the XML, then core `parseAls`).
+    No Drum Rack written: the drums are on GM keys, which Live's kits already follow.
+  - Ableton Link (`src/server/link.ts`, optional): `LINK=1 pnpm server` with `@ktamas77/abletonlink` installed by
+    hand (`pnpm add -O`, native build; not installed: the install was blocked in the session), Live's Start Stop Sync
+    on. A third tab-clock source in `tabFollow.ts` (Cinder > Live playing > WebApp): Link has no song position, so
+    Live's start = bar 1 (`LINK_FROM_BAR`), the folder = the last one Cinder/a WebApp named (`LINK_FOLDER`).
+    `/status` shows `tabClock` and `link`.
+  - Tests 75/75 (practice 9, alstab 3, export +1, tabfollow +1). Not tried yet: a real phone's microphone (tuner,
+    listen, step), the sets in Live, Link with Live.
+- 2026-11-20 (6.11.20.2): **the Jam** (`../studies/reymenta-jam.md`, for the Ableton meeting): a third start button
+  (Show | Jam | Workshop). The phone joins the room as for the Show, then `{t:"jam",on}`; it picks a track
+  (`jt`), plays pads (`jn`: held = note on until released), moves knobs (`jk`) and launches clips (`jc`).
+  - `src/jam/config.ts`: `jam.json` (default `assets/jam/jam.json`, `JAM_FILE`): MIDI output name, tempo, quantize,
+    root + mode, `clipChannel`, up to 12 tracks (notes: octave/octaves/voices; drums: named pads; fx: knobs; each
+    with CC knobs and clips = a note on `clipChannel` that the organiser MIDI-maps to a clip slot in Live), validated.
+  - `src/jam/jam.ts`: pads over the scale only (`padNote`), a note shared by phones sounds once, `voices` cap per
+    track, notes on Link's beat grid (`quantize`, 1/16) when Link has a peer (else at once), note offs after their
+    note on, 10 s max hold, a phone leaving releases its notes; knobs = average of the phones moving them (15 s),
+    sent as CCs 20/s when changed; clips only those switched on, 2 s cooldown per phone; the organiser's scale
+    change ends held notes.
+  - Server (`main.ts`): MIDI out through TSWebsocketServer `{"event":"midimsg",port,messages}` (TSWS 6.11.20.1
+    added `noteon`/`noteoff` there); closed until `POST /admin/jam/on` (localhost + X-Token like the other admin
+    routes; also `off`, `reload`, `clip/<track>/<clip>/on|off`, `scale/<root>/<mode>`) or `JAM_OPEN=1`; state to
+    the Jam phones when it changes (2/s max), the beat each second (`jbeat`); `/status` has `jam`.
+  - Phone (`web/src/jam/JamView.tsx`, lazy, 3 KB gzip): track list (kind, players), scale pads in rows by octave
+    (root in the track's colour, degrees around the hue circle, note names FR/EN, multi-touch, velocity from the
+    finger's height), drum pads, clip buttons, knobs (8 msg/s), an XY pad for an effect with 2 knobs, a 4-beat
+    pulse.
+  - Tests 83/83 (jam 8: one real bug found, the first clip launch refused within 2 s of the clock's origin).
+    End to end with the real server, a stand-in TSWebsocketServer and a scripted phone: note on/off, CC, clip,
+    a switched-off clip refused, a held note released when the phone left. Not tried: real phones, Live, Link.
 
 ## Next
 
@@ -153,3 +229,14 @@ room's tilt/shake/touch/emoji into Cinder uniforms `iAud0..iAud31` (260..291). O
 - 2026-11-17: `pnpm show-qr` draws a **16:9** image (1920x1080: QR left, code large on the right, away from the
   edges): the square one was stretched by Cinder and its code darkened by post.glsl's vignette. Also shown by the new
   `assets/glsl/ableton` folder (the FRAUG talk, fbo 1) on the deck's "Jouez avec nous" slide.
+
+
+L'appli qui n'apparaît pas, c'est normal. Tant qu'elle est en test, la recherche Google Play ne la montre jamais, même aux testeurs. Un testeur n'y accède que par les liens du canal de test. Voici comment l'installer sur ton téléphone avec le compte batchass06 :
+
+Publier une version sur le canal de test interne. Dans la Play Console : Tester et publier > Tests > Tests internes > Créer une release. Importe l'AAB, puis Enregistrer > Vérifier > Lancer le déploiement. Les tests internes n'ont pas d'examen : la version est disponible en quelques minutes.
+Cocher ta liste sur ce canal. Créer la liste « reymenta » (ta capture) ne suffit pas. Dans l'onglet Testeurs du même canal, coche la case de la liste puis clique sur Enregistrer. Chaque canal a sa propre sélection de testeurs : c'est l'étape qu'on oublie le plus souvent.
+Accepter l'invitation. Dans l'onglet Testeurs, copie le lien « Rejoindre sur le Web ». Ouvre-le connecté avec batchass06 et appuie sur Devenir testeur.
+Installer. Passe par le lien de cette page, ou par https://play.google.com/store/apps/details?id=com.videodromm.reymenta. L'appli Play Store du téléphone doit aussi être sur batchass06 (touche l'avatar pour changer de compte).
+Si tu vois « Article introuvable », une des étapes 1 à 3 n'est pas encore faite. Attends quelques minutes, vide le cache du Play Store et réessaie.
+Si un APK de debug installé par pnpm deploy:android est déjà sur ce téléphone, désinstalle-le d'abord. Il est signé avec une autre clé et bloque l'installation depuis Play.
+Les tests internes ne comptent pas pour l'accès à la production. Pour ça, il faut toujours le canal de test fermé : au moins 12 testeurs inscrits pendant 14 jours d'affilée. Tu peux cocher la même liste sur le canal fermé et partager le lien d'inscription de ce canal à tes testeurs.

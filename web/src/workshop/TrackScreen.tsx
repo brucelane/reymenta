@@ -18,10 +18,12 @@ const DrumSection = lazy(() => import('./DrumSection'));
 const HydraSection = lazy(() => import('./HydraSection'));
 // MIDI / .als / whole-track JSON (step 6)
 const ExportSection = lazy(() => import('./ExportSection'));
+// practising the tab: loop, speed, count-in, the bass muted, the microphone (2026-11-20)
+const PracticeSection = lazy(() => import('./PracticeSection'));
 
 const BPB = [2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 7, 7.5, 8, 9, 12];
 
-export function TrackScreen({ t, lib, folder, cat, setLib, update, fretboard, deleted }: {
+export function TrackScreen({ t, lang, lib, folder, cat, setLib, update, fretboard, deleted }: {
   t: WTexts; lang: Lang; lib: Library; folder: string; cat?: Catalogue; setLib: (l: Library) => void;
   update: (f: (l: Library) => Library) => void; fretboard: () => void; deleted: () => void;
 }) {
@@ -34,6 +36,7 @@ export function TrackScreen({ t, lib, folder, cat, setLib, update, fretboard, de
   const [drumsOpen, setDrumsOpen] = useState(false);
   const [hydraOpen, setHydraOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [practiceOpen, setPracticeOpen] = useState(false);
   // the patch playing: the bass tab follows its bar; stopped, the tab stays where it was
   const [clock, setClock] = useState<ClockAt | undefined>();
   const onClock = (c: ClockAt | undefined) => {
@@ -135,6 +138,18 @@ export function TrackScreen({ t, lib, folder, cat, setLib, update, fretboard, de
         </>
       )}
 
+      {tab && (
+        <>
+          <h2 className="ws-fold">
+            <button onClick={() => setPracticeOpen((o) => !o)} aria-expanded={practiceOpen}>{practiceOpen ? '▾' : '▸'} {t.practice}</button>
+          </h2>
+          {practiceOpen && (
+            <Suspense fallback={<p className="ws-dim">{t.loading}</p>}>
+              <PracticeSection lang={lang} folder={folder} track={track} tab={tab} code={lib.patches[folder]} />
+            </Suspense>
+          )}
+        </>
+      )}
       <h2 className="ws-fold">
         <button onClick={() => setStrudelOpen((o) => !o)} aria-expanded={strudelOpen}>{strudelOpen ? '▾' : '▸'} {t.strudel}</button>
       </h2>

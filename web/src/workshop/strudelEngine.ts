@@ -137,6 +137,27 @@ export async function play(code: string, from = 0, owner = 'patch'): Promise<voi
   watchEnd();
 }
 
+/**
+ * Plays code as it is from the scheduler's cycle 0 (no .early, no end of track): the practice pattern
+ * (practice.ts: loop, count-in, speed) handles its own timing. Call it from the click itself.
+ */
+export async function playRaw(code: string, owner: string): Promise<void> {
+  resumeAudio();
+  await initEngine();
+  hush();
+  offset = 0;
+  lastCode = code;
+  try {
+    await evaluateOrThrow(code);
+  } catch (e) {
+    hush();
+    set({ playing: false });
+    throw e;
+  }
+  set({ playing: true, owner, cps: cpsOf(code), end: null });
+  watchEnd();
+}
+
 /** New code while playing: evaluated without restarting the scheduler (the bar goes on). */
 export async function update(code: string): Promise<void> {
   if (!state.playing) return play(code, 0, state.owner || 'patch');

@@ -66,3 +66,37 @@ test('messages that are not transport states, or carry a bad folder, are ignored
   assert.equal(f.receive(state({ from: 'webapp', playing: true, folder: 'song', cycle: 1 })), false); // an older WebApp: no cps
   assert.equal(f.receive('not json {"transport"'), false);
 });
+
+test('Ableton Link (2026-11-20): the tab starts at bar 1 when Live starts, follows its tempo, Cinder still wins', () => {
+  let t = 1000;
+  const f = new TabFollow(assets(), () => t);
+  // no folder named yet: Link alone can't choose a track
+  assert.equal(f.receiveLink({ tempo: 120, beat: 10, playing: true, peers: 1 }), false);
+  assert.equal(f.clock(), undefined);
+  f.linkFolder = 'song';
+  // Live stopped: nothing to follow yet (a stopped Link doesn't take over)
+  assert.equal(f.receiveLink({ tempo: 120, beat: 10, playing: false, peers: 1 }), false);
+  // Live starts on beat 17 (bar 5 of Link's timeline): the song's bar 1
+  assert.equal(f.receiveLink({ tempo: 120, beat: 17, playing: true, peers: 1 }), true);
+  assert.equal(f.source, 'link');
+  assert.deepEqual(f.clock(), { t: 'clock', f: 'song', p: 1, c: 0.25, s: 0.5 }); // 120 bpm, 4/4: half a bar a second
+  t += 1000;
+  assert.equal(f.receiveLink({ tempo: 120, beat: 19, playing: true, peers: 1 }), false); // same tempo: no news
+  assert.equal(f.clock()!.c, 0.75);
+  assert.equal(f.receiveLink({ tempo: 90, beat: 19.5, playing: true, peers: 1 }), true); // tempo change
+  assert.equal(f.clock()!.s, 0.375);
+  // Cinder's state wins while fresh
+  f.receive(state({ from: 'cinder', playing: true, folder: 'song', position: 4 }));
+  assert.equal(f.source, 'cinder');
+  // Live stops (and Cinder's state ages): back to nothing
+  t += 9000;
+  assert.equal(f.receiveLink({ tempo: 90, beat: 30, playing: false, peers: 1 }), false);
+  assert.equal(f.clock(), undefined);
+  // LINK_FROM_BAR: Live's start = bar 9; the folder named last by a WebApp is used without LINK_FOLDER
+  const g = new TabFollow(assets(), () => t);
+  g.linkFromBar = 9;
+  g.receive(state({ from: 'webapp', playing: false, folder: 'song', cycle: 0, cps: 0.5 }));
+  t += 9000;
+  g.receiveLink({ tempo: 120, beat: 3, playing: true, peers: 1 });
+  assert.equal(g.clock()!.c, 8.75);
+});
