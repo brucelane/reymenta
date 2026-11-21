@@ -25,6 +25,7 @@ import { validateJam, rootOf } from '../jam/config';
 import { Jam } from '../jam/jam';
 import { startLink, type LinkPoller } from './link';
 import { TabFollow } from './tabFollow';
+import { phoneShader } from './phoneShader';
 import { defaultLibraryDir, handleLibrary } from './library';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -87,6 +88,7 @@ const cloud = setting('PUBSUB_CONNECTION_STRING')
       if (msg.t === 'emo' && !emojisOn()) return;
       if (msg.t === 'hello') cloudPhones.add(userId);
       if (msg.t === 'tab') onTabView(userId, msg.on);
+      if (msg.t === 'vis') onVisView(userId, msg.on);
       if (msg.t.startsWith('j')) { onJam(userId, msg); if (msg.t !== 'jam') return; }
       deliver(room.receive(userId, msg, now));
     }, log)
@@ -159,6 +161,26 @@ function sendTab(only?: string) {
     }
     sendTo(id, clock);
   }
+  sendVis(only);
+}
+
+// The visuals behind the jam (2026-11-21, phoneShader.ts): those phones get the playing folder's shader once per
+// folder and the same clock as the tab view; they render it themselves
+const visPhones = new Map<string, string>(); // phone id -> the folder whose shader it has ("" = none yet)
+function sendVis(only?: string) {
+  const clock = tabFollow.clock();
+  if (!clock) return;
+  for (const [id, has] of visPhones) {
+    if (only && id !== only) continue;
+    if (has !== clock.f) {
+      sendTo(id, { t: 'shader', f: clock.f, code: phoneShader(assetsGlsl, clock.f).code });
+      visPhones.set(id, clock.f);
+    }
+    sendTo(id, clock);
+  }
+}
+function onVisView(id: string, on: boolean) {
+  if (on) { visPhones.set(id, ''); sendVis(id); } else visPhones.delete(id);
 }
 
 // Ableton Link (2026-11-20, optional: LINK=1 and the native module, link.ts): the tab follows Live's tempo and start/stop
@@ -351,6 +373,7 @@ wss.on('connection', (ws) => {
     }
     if (!id) return;
     if (msg.t === 'tab') onTabView(id, msg.on);
+    if (msg.t === 'vis') onVisView(id, msg.on);
     if (msg.t.startsWith('j')) { onJam(id, msg); if (msg.t !== 'jam') return; }
     deliver(room.receive(id, msg, now));
   });
@@ -358,6 +381,7 @@ wss.on('connection', (ws) => {
     if (id && sockets.get(id) === ws) {
       sockets.delete(id);
       tabPhones.delete(id);
+      visPhones.delete(id);
       jamLeave(id);
       deliver(room.leave(id));
     }
@@ -403,6 +427,7 @@ setInterval(() => {
     // phones that left the room (asleep, cloud phones gone) stop getting the clock
     const inRoom = new Set(room.participants().map((p) => p.id));
     for (const id of tabPhones.keys()) if (!inRoom.has(id)) tabPhones.delete(id);
+    for (const id of visPhones.keys()) if (!inRoom.has(id)) visPhones.delete(id);
     if (tabFollow.playing) sendTab();
   }
   if (room.count !== lastCount) {

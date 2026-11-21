@@ -15,6 +15,8 @@ export type PhoneMessage =
   | { t: 'emo'; e: number }
   /** the bass tab view opened (on) or closed: only then the server sends the tab and its clock (2026-11-19) */
   | { t: 'tab'; on: boolean }
+  /** the visuals behind the jam on (on) or off (2026-11-21): the server then sends the folder's shader and the clock */
+  | { t: 'vis'; on: boolean }
   /** the Jam (2026-11-20, src/jam): the screen opened/closed, a track picked (-1: none), a pad (p) pressed (on 1) or
    *  released (with an optional velocity v 0..1), a knob (k) moved (v 0..1), a clip (c) launched */
   | { t: 'jam'; on: boolean }
@@ -40,6 +42,9 @@ export interface TabMsg {
 /** Where the song is (server -> tab-view phones, every second while playing and on every change):
  *  f folder, p playing, c the song's bar - 1 (fractional, at reception), s cycles per second. */
 export interface TabClockMsg { t: 'clock'; f: string; p: 0 | 1; c: number; s: number }
+/** The folder's shader for the phone's background (server -> vis phones, once per folder, 2026-11-21): ready for
+ *  WebGL2 (version, precision, Cinder's preamble); "" = none usable (the phone draws its ambient shader). */
+export interface ShaderMsg { t: 'shader'; f: string; code: string }
 
 import type { JamBeatMsg, JamStateMsg } from '../jam/jam';
 export type { JamBeatMsg, JamStateMsg };
@@ -60,6 +65,7 @@ export type ServerMessage =
   | { t: 'emojis'; on: boolean }
   | TabMsg
   | TabClockMsg
+  | ShaderMsg
   | JamStateMsg
   | JamBeatMsg;
 
@@ -102,6 +108,8 @@ export function parsePhoneMessage(raw: string): PhoneMessage | undefined {
     }
     case 'tab':
       return typeof o.on === 'boolean' ? { t: 'tab', on: o.on } : undefined;
+    case 'vis':
+      return typeof o.on === 'boolean' ? { t: 'vis', on: o.on } : undefined;
     case 'jam':
       return typeof o.on === 'boolean' ? { t: 'jam', on: o.on } : undefined;
     case 'jt':

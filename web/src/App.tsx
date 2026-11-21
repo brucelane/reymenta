@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { EMOJIS, type JamBeatMsg, type JamStateMsg, type PhoneMessage, type ServerMessage, type TabMsg } from '../../src/room/protocol';
+import { EMOJIS, type JamBeatMsg, type JamStateMsg, type PhoneMessage, type ServerMessage, type TabMsg, type ShaderMsg } from '../../src/room/protocol';
 import { TabView, type ClockAt } from './TabView';
 import { connect, fromShowLink, gateOpensAt, isNativeApp, phoneId, savedServer, saveServer, saveShowCode, showCode, type Connection, type Status } from './connection';
 import { discoverServer } from './discovery';
@@ -12,6 +12,7 @@ const Workshop = lazy(() => import('./workshop/Workshop'));
 const Tuner = lazy(() => import('./tuner/Tuner'));
 // the Jam (2026-11-20, studies/reymenta-jam.md): its own chunk
 const JamView = lazy(() => import('./jam/JamView'));
+const VisBackground = lazy(() => import('./jam/VisBackground'));
 type AppMode = 'show' | 'workshop';
 const MODE_KEY = 'reymenta:mode';
 function initialMode(): AppMode {
@@ -39,10 +40,12 @@ export function App() {
   const jamModeRef = useRef(false);
   const [jamState, setJamState] = useState<JamStateMsg | undefined>();
   const [jamBeat, setJamBeat] = useState<{ msg: JamBeatMsg; at: number } | undefined>();
-  const leaveJam = () => { jamModeRef.current = false; setJamMode(false); conn.current?.send({ t: 'jam', on: false }); };
+  const leaveJam = () => { jamModeRef.current = false; setJamMode(false); conn.current?.send({ t: 'jam', on: false }); conn.current?.send({ t: 'vis', on: false }); };
   const tabOpenRef = useRef(false);
   const [tab, setTab] = useState<TabMsg | undefined>();
   const [clock, setClock] = useState<ClockAt | undefined>();
+  // the show's visuals behind the jam (2026-11-21): the playing folder's shader, rendered here (jam/VisBackground.tsx)
+  const [visShader, setVisShader] = useState<ShaderMsg | undefined>();
   const toggleTab = () => {
     const on = !tabOpenRef.current;
     tabOpenRef.current = on;
@@ -94,7 +97,7 @@ export function App() {
           setMe((m) => ({ slot: msg.slot, x: msg.x, y: msg.y, count: m?.count ?? msg.slot + 1, name: msg.name, hue: msg.hue }));
           // after a reconnect the server has forgotten the open tab view
           if (tabOpenRef.current) conn.current?.send({ t: 'tab', on: true });
-          if (jamModeRef.current) conn.current?.send({ t: 'jam', on: true });
+          if (jamModeRef.current) { conn.current?.send({ t: 'jam', on: true }); conn.current?.send({ t: 'vis', on: true }); }
         } else if (msg.t === 'place') {
           setMe((m) => (m ? { ...m, slot: msg.slot, x: msg.x, y: msg.y, count: msg.count } : m));
         } else if (msg.t === 'full') {
@@ -103,6 +106,8 @@ export function App() {
           setEmojis(msg.on);
         } else if (msg.t === 'tab') {
           setTab(msg);
+        } else if (msg.t === 'shader') {
+          setVisShader(msg);
         } else if (msg.t === 'clock') {
           setClock({ msg, at: performance.now() });
         } else if (msg.t === 'jam') {
@@ -222,6 +227,7 @@ export function App() {
       )}
       {!sensors && <p className="warn">{t.sensorsOff}</p>}
       {debugSensors && <p className="small">sensor {m.src ?? '?'} · tilt {m.tx.toFixed(2)} {m.ty.toFixed(2)} · shake {m.sh.toFixed(2)}</p>}
+      {jamMode && me && <Suspense fallback={null}><VisBackground shader={visShader} clock={clock} hue={hue} /></Suspense>}
       {jamMode && me && (
         <Suspense fallback={<p className="small">…</p>}>
           <JamView lang={lang} state={jamState} beat={jamBeat} send={(msg) => conn.current?.send(msg as PhoneMessage)} onLeave={leaveJam} />

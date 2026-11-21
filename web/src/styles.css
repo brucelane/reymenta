@@ -32,7 +32,8 @@ button:active { background: #22222b; }
 .small a { color: var(--dim); }
 
 /* --me is computed here, where the player's --hue is set (a value computed on :root wouldn't follow it) */
-.play { --me: hsl(var(--hue) 90% 60%); height: 100%; display: flex; flex-direction: column; padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)); gap: 8px; }
+/* 2026-11-21: the screen scrolls when the jam and the tab don't fit (they used to squeeze and overlap) */
+.play { --me: hsl(var(--hue) 90% 60%); height: 100%; overflow-y: auto; display: flex; flex-direction: column; padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)); gap: 8px; }
 .play header { padding-right: 96px; min-height: 44px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
 .youare { color: var(--dim); }
 .name { color: var(--me); font-size: 20px; }
@@ -58,7 +59,8 @@ button:active { background: #22222b; }
 /* the bass tab view (2026-11-19) */
 .tab-toggle { padding: 4px 10px; font-size: 13px; color: var(--dim); }
 .tab-toggle.on { color: var(--text); border-color: var(--me); }
-.tab { display: flex; flex-direction: column; gap: 2px; }
+/* the tab keeps its height and stays readable on a wide screen (its rows are SVGs scaled to the width: huge on a desktop) */
+.tab { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; width: 100%; max-width: 720px; align-self: center; }
 .tab-title { margin: 0 0 2px; font-size: 13px; color: var(--dim); }
 .tab-title b { color: var(--text); }
 .tab-msg { margin: 0; font-size: 13px; color: var(--dim); }
