@@ -1,6 +1,6 @@
 {
   "name": "reymenta",
-  "version": "6.11.21.2",
+  "version": "6.11.21.3",
   "private": true,
   "description": "Reymenta: the audience plays along with the AV set from their phones (live.videodromm.com)",
   "license": "AGPL-3.0-or-later",
@@ -57,5 +57,20 @@
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vite": "^5.4.21"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@ktamas77/abletonlink"
+    ],
+    "overrides": {
+      "node-addon-api": "8.0.0"
+    },
+    "patchedDependencies": {
+      "@ktamas77/abletonlink@1.2.3": "patches/@ktamas77__abletonlink@1.2.3.patch"
+    }
+  },
+  "optionalDependencies": {
+    "@ktamas77/abletonlink": "^1.2.3"
   }
 }

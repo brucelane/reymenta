@@ -1,0 +1,12 @@
+diff --git a/binding.gyp b/binding.gyp
+index 11123e5dc4dc26d50165e149db59f402937d6e39..335f1f0a115c3d20e6d4ef98d03aa9bb121e0cd6 100644
+--- a/binding.gyp
++++ b/binding.gyp
+@@ -14,7 +14,6 @@
+       "cflags_cc": [ "-std=c++14" ],
+       "defines": [ 
+         "NAPI_DISABLE_CPP_EXCEPTIONS",
+-        "LINK_PLATFORM_MACOSX=1",
+         "ASIO_STANDALONE=1"
+       ],
+       "conditions": [

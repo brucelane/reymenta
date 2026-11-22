@@ -34,7 +34,9 @@ button:active { background: #22222b; }
 /* --me is computed here, where the player's --hue is set (a value computed on :root wouldn't follow it) */
 /* 2026-11-21: the screen scrolls when the jam and the tab don't fit (they used to squeeze and overlap) */
 .play { --me: hsl(var(--hue) 90% 60%); height: 100%; overflow-y: auto; display: flex; flex-direction: column; padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)); gap: 8px; }
-.play header { padding-right: 96px; min-height: 44px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+/* 2026-11-22: flex-shrink 0: when the jam is taller than the screen, the header was squeezed to its 44 px and its
+   second line (place + Tab/Tuner buttons) drawn under the jam's title line (seen in landscape) */
+.play header { flex-shrink: 0; padding-right: 96px; min-height: 44px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
 .youare { color: var(--dim); }
 .name { color: var(--me); font-size: 20px; }
 .place { color: var(--dim); font-size: 13px; width: 100%; }
@@ -85,3 +87,26 @@ button:active { background: #22222b; }
 /* the start screen's second choice: the Workshop (lazy-loaded, web/src/workshop) */
 .workshop-btn { font-size: 15px; padding: 10px 18px; color: var(--text); }
 .jam-btn { border-color: hsl(280 70% 60%); color: var(--text); }
+
+/* join-screen carousel (web/src/Showcase.tsx): same footprint as the old logo, 16:9 for clips */
+.showcase { width: min(80vw, 360px); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.showcase-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; display: flex; align-items: center; justify-content: center;
+  border-radius: 12px; overflow: hidden; animation: showcase-in 0.5s ease; }
+.showcase-frame .logo { width: 100%; height: 100%; object-fit: contain; }
+.showcase-media { width: 100%; height: 100%; object-fit: cover; display: block; }
+.showcase-caption { position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 10px 8px; font-size: 15px; font-weight: 500; letter-spacing: 0.04em;
+  color: #fff; background: linear-gradient(transparent, rgba(0, 0, 0, 0.75)); }
+.showcase-text { font-size: 24px; letter-spacing: 0.06em; color: var(--text); }
+.showcase-dots { display: flex; gap: 6px; }
+.showcase-dots button { width: 8px; height: 8px; padding: 0; border-radius: 50%; background: #2a2a33; border: none; }
+.showcase-dots button.on { background: var(--text); }
+@keyframes showcase-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .showcase-frame { animation: none; } }
+.showcase-media.contain { object-fit: contain; padding-bottom: 34px; }
+/* the carousel's fullscreen button (Showcase.tsx) and the carousel filling the screen */
+.showcase { position: relative; }
+.showcase-full { position: absolute; top: 6px; right: 6px; z-index: 1; padding: 2px 8px; font-size: 16px; line-height: 1.4;
+  background: rgba(0, 0, 0, 0.55); border-color: rgba(255, 255, 255, 0.2); }
+.showcase:fullscreen { width: 100vw; height: 100vh; justify-content: center; background: #000; padding: 16px; }
+.showcase:fullscreen .showcase-frame { width: min(100%, calc((100vh - 60px) * 16 / 9)); border-radius: 0; }
+.showcase:fullscreen .showcase-caption { font-size: 22px; padding: 30px 16px 14px; }

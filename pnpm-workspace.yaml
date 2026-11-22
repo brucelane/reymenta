@@ -1,2 +1,5 @@
+# packages allowed to run their install scripts (pnpm 11, the Mac); pnpm 10 (the Acer) reads package.json "pnpm".
+# @ktamas77/abletonlink: Ableton Link for the Jam (optional, native build, src/server/link.ts, 2026-11-21)
 allowBuilds:
   esbuild: true
+  '@ktamas77/abletonlink': true

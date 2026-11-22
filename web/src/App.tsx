@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { EMOJIS, type JamBeatMsg, type JamStateMsg, type PhoneMessage, type ServerMessage, type TabMsg, type ShaderMsg } from '../../src/room/protocol';
 import { TabView, type ClockAt } from './TabView';
+import { Showcase } from './Showcase';
 import { connect, fromShowLink, gateOpensAt, isNativeApp, phoneId, savedServer, saveServer, saveShowCode, showCode, type Connection, type Status } from './connection';
 import { discoverServer } from './discovery';
 import { initialLang, saveLang, texts, type Lang } from './i18n';
@@ -176,7 +177,7 @@ export function App() {
     return (
       <main className="join">
         {playBadge}{langSwitch}
-        <h1><img className="logo" src="./logo.png" alt="Reymenta" /></h1>
+        <h1><Showcase lang={lang} /></h1>
         <p className="tagline">{t.tagline}</p>
         {isNativeApp && (
           <label className="server">

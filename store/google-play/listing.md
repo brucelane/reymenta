@@ -14,7 +14,7 @@ Jouez avec le show audiovisuel Reymenta depuis votre téléphone.
 **Description complète**
 Pendant les concerts audiovisuels de Reymenta, votre téléphone devient un instrument visuel.
 
-Rejoignez le show, recevez un nom (« Loutre turquoise ») et une couleur, et prenez votre place sur l'écran géant :
+Rejoignez le show, recevez un nom (« Loutre turquoise ») et une couleur, et prenez votre place sur l'écran :
 • inclinez le téléphone pour déplacer votre cercle
 • secouez-le pour le faire grandir
 • touchez l'écran, envoyez des emojis 🔥 😍 👏
@@ -32,7 +32,7 @@ Play along with the Reymenta audiovisual show from your phone.
 **Full description**
 During Reymenta's audiovisual concerts, your phone becomes a visual instrument.
 
-Join the show, get a name ("Teal otter") and a colour, and take your place on the big screen:
+Join the show, get a name ("Teal otter") and a colour, and take your place on the screen:
 • tilt the phone to move your circle
 • shake it to make it grow
 • touch the screen, send emojis 🔥 😍 👏
