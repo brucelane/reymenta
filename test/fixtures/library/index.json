@@ -5,7 +5,7 @@
   "artists": [
     { "id": "batchass", "name": "Batchass", "tagline": { "fr": "Electro-Fusion", "en": "Electro-Fusion" }, "bio": { "fr": "bio", "en": "bio" },
       "members": [{ "name": "Bruce", "role": { "fr": "basse", "en": "bass" } }],
-      "links": [{ "platform": "Spotify", "url": "https://open.spotify.com/artist/x" }, { "platform": "Bad", "url": "javascript:alert(1)" }],
+      "links": [{ "platform": "Spotify", "url": "https://open.spotify.com/artist/7g821hxayoVcg1yU71wmF7" }, { "platform": "Bad", "url": "javascript:alert(1)" }],
       "logo": "artists/batchass.png" },
     { "id": "Bad Id", "name": "x" }
   ],
