@@ -1,5 +1,17 @@
-# packages allowed to run their install scripts (pnpm 11, the Mac); pnpm 10 (the Acer) reads package.json "pnpm".
+# pnpm settings, read by pnpm 10 (the Acer) and pnpm 11 (the Mac) alike (2026-11-25: they were in package.json "pnpm",
+# which pnpm 11 ignores: its install then found the lockfile "outdated" and the audience server never started).
 # @ktamas77/abletonlink: Ableton Link for the Jam (optional, native build, src/server/link.ts, 2026-11-21)
+
+# packages allowed to run their install scripts: pnpm 11 reads allowBuilds, pnpm 10 onlyBuiltDependencies
 allowBuilds:
   esbuild: true
   '@ktamas77/abletonlink': true
+onlyBuiltDependencies:
+  - esbuild
+  - '@ktamas77/abletonlink'
+
+overrides:
+  node-addon-api: 8.0.0
+
+patchedDependencies:
+  '@ktamas77/abletonlink@1.2.3': patches/@ktamas77__abletonlink@1.2.3.patch
