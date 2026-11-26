@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { gridSize, layout } from '../src/room/layout';
+import { AVATAR_COUNT, avatarFile, avatarFor } from '../src/room/avatars';
 import { nameFor } from '../src/room/names';
 import { parsePhoneMessage } from '../src/room/protocol';
 import { AUD, EMOJI_FADE_MS, EMOJI_SLOTS, Room, TIMEOUT_MS } from '../src/room/room';
@@ -93,4 +94,25 @@ test('room: each emoji on its own in iAud9..15, fading', () => {
   v = room.aggregates(2000 + 3 * EMOJI_FADE_MS);
   assert.ok(v[AUD.each] * EMOJI_SLOTS < 2 * 0.06);
   assert.equal(v[AUD.fire], 0); // 🔥 untouched
+});
+
+test('avatars: stable per phone, distinct in a room, shared only when they run out', () => {
+  assert.equal(avatarFor('phone-a', new Set(), 10), avatarFor('phone-a', new Set(), 10));
+  assert.equal(avatarFile(7), 'av007.webp');
+  // ten phones on ten avatars: all different
+  const taken = new Set<number>();
+  for (let i = 0; i < 10; i++) taken.add(avatarFor(`p${i}`, taken, 10));
+  assert.equal(taken.size, 10);
+  assert.ok(avatarFor('p10', taken, 10) >= 0); // the eleventh shares one
+  assert.equal(avatarFor('x', new Set(), 0), -1);
+  // the room sends it in the welcome, and a rejoin keeps it
+  const room = new Room();
+  const a = room.receive('alice', { t: 'hello', id: 'alice', lang: 'fr' }, 0)[0].msg;
+  const b = room.receive('bob', { t: 'hello', id: 'bob', lang: 'en' }, 0)[0].msg;
+  assert.ok(a.t === 'welcome' && b.t === 'welcome');
+  if (a.t !== 'welcome' || b.t !== 'welcome') return;
+  assert.notEqual(a.avatar, b.avatar);
+  assert.ok((a.avatar ?? -1) >= 0 && (a.avatar ?? 0) < AVATAR_COUNT);
+  const again = room.receive('alice', { t: 'hello', id: 'alice', lang: 'fr' }, 1000)[0].msg;
+  assert.ok(again.t === 'welcome' && again.avatar === a.avatar);
 });

@@ -3,7 +3,7 @@ import type { Lang } from '../i18n';
 
 const fr = {
   title: 'Atelier',
-  show: 'Show',
+  home: 'Accueil',
   back: 'Retour',
   loading: 'Chargement…',
   setlists: 'Setlists',
@@ -18,7 +18,7 @@ const fr = {
   myTracks: 'Ma bibliothèque',
   public: 'public',
   publicTracks: 'Catalogue public',
-  publicFrom: (src: string) => `Catalogue : ${src}`,
+  publicFrom: (local: boolean): string => (local ? 'Catalogue public : celui du serveur du concert (réseau local)' : 'Catalogue public : en ligne'),
   offline: 'Catalogue public indisponible (hors ligne) : seule votre bibliothèque est là.',
   newSetlist: 'Nouvelle setlist',
   newTrack: 'Nouveau morceau',
@@ -216,7 +216,7 @@ export type WTexts = typeof fr;
 
 const en: WTexts = {
   title: 'Workshop',
-  show: 'Show',
+  home: 'Home',
   back: 'Back',
   loading: 'Loading…',
   setlists: 'Setlists',
@@ -231,7 +231,7 @@ const en: WTexts = {
   myTracks: 'My library',
   public: 'public',
   publicTracks: 'Public catalogue',
-  publicFrom: (src) => `Catalogue: ${src}`,
+  publicFrom: (local) => (local ? "Public catalogue: the show server's (local network)" : 'Public catalogue: online'),
   offline: 'Public catalogue unavailable (offline): only your library is here.',
   newSetlist: 'New setlist',
   newTrack: 'New track',

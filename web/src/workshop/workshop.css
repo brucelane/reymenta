@@ -17,7 +17,8 @@
 .ws-msg { margin: 0; font-size: 14px; }
 .ws-badge { font-size: 11px; color: #9ad; border: 1px solid #345; border-radius: 6px; padding: 1px 5px; margin-left: 6px; }
 .ws-menu { display: flex; flex-direction: column; gap: 8px; }
-.ws-menu button { font-size: 18px; padding: 14px; text-align: left; }
+.ws-menu button { font-size: 18px; padding: 14px; text-align: left; display: flex; align-items: center; gap: 12px; }
+.ws-menu button svg { width: 22px; height: 22px; flex: none; opacity: 0.8; }
 .ws-list { display: flex; flex-direction: column; gap: 6px; }
 .ws-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; text-align: left; width: 100%; }
 .ws-entry { display: flex; gap: 4px; align-items: stretch; }

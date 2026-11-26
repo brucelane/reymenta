@@ -52,7 +52,7 @@ export type { JamBeatMsg, JamStateMsg };
 /** Server -> one phone. */
 export type ServerMessage =
   /** answer to hello: the phone's slot, place in the grid (0..1) and random name */
-  | { t: 'welcome'; slot: number; x: number; y: number; name: { fr: string; en: string }; hue: number }
+  | { t: 'welcome'; slot: number; x: number; y: number; name: { fr: string; en: string }; hue: number; avatar?: number }
   /** the room changed size, or the phone's place moved */
   | { t: 'place'; slot: number; x: number; y: number; count: number }
   /** the show's mode (what the phone screen shows), e.g. "circles", "off" */

@@ -3,6 +3,7 @@
 // /screen (the demo, later) both host it. Times are milliseconds from the caller (Date.now() or a test clock).
 
 import { layout, type Place } from './layout';
+import { avatarFor } from './avatars';
 import { nameFor } from './names';
 import { EMOJIS, MAX_PLACES, type PhoneMessage, type ServerMessage } from './protocol';
 
@@ -45,6 +46,8 @@ export interface Participant {
   lang: 'fr' | 'en';
   name: { fr: string; en: string };
   hue: number;
+  /** index in web/public/avatars (avatars.ts), -1 when there are none */
+  avatar: number;
   joined: number;
   lastSeen: number;
   lastEmoji: number;
@@ -102,7 +105,8 @@ export class Room {
       if (this.people.length >= MAX_PLACES) return [{ id, msg: { t: 'full' } }];
       const n = nameFor(id);
       p = {
-        id, lang, name: { fr: n.fr, en: n.en }, hue: hue ?? n.hue, joined: now, lastSeen: now, lastEmoji: 0,
+        id, lang, name: { fr: n.fr, en: n.en }, hue: hue ?? n.hue,
+        avatar: avatarFor(id, new Set(this.people.map((q) => q.avatar))), joined: now, lastSeen: now, lastEmoji: 0,
         tx: 0, ty: 0, sh: 0, to: 0, px: 0.5, py: 0.5,
       };
       this.people.push(p);
@@ -115,7 +119,7 @@ export class Room {
     const slot = this.people.indexOf(p);
     const place = this.places()[slot];
     const out: Outgoing[] = [
-      { id, msg: { t: 'welcome', slot, x: place.x, y: place.y, name: p.name, hue: p.hue } },
+      { id, msg: { t: 'welcome', slot, x: place.x, y: place.y, name: p.name, hue: p.hue, avatar: p.avatar } },
       { id, msg: { t: 'mode', mode: this.mode } },
     ];
     if (layoutChanged) out.push(...this.placeUpdates(id));

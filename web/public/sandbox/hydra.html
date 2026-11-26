@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hydra (jam)</title>
+<!--
+  The online Jam's visuals (2026-11-26): a room player's Hydra code runs HERE, in an <iframe sandbox="allow-scripts">
+  (no allow-same-origin): an opaque origin that can't read the Reymenta page, its storage or its connection.
+  Messages from the parent page only (event.source === parent):
+    {type:'code', code}            run this code (the room's latest)
+    {type:'hit', ch, note, v}      a note of the room just sounded: room.kick, room.snare, room.hat, room.bass... jump
+                                   to v (0..1) and fall back (Hydra code reads them as () => room.kick)
+    {type:'clear'}                 black
+  To the parent: {type:'ready'}, {type:'error', message}, {type:'ok'}.
+  hydra-synth 1.4.0 (AGPL) from jsDelivr, pinned with its hash (the same bytes as the app's node_modules copy).
+-->
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/hydra-synth@1.4.0/dist/hydra-synth.js"
+  integrity="sha384-/vOuuF0UsnMoxr7eN/uWmNuIDUgt5t++C+G6a+T9WpUwK3vbCAStyB5cq3IajAj0" crossorigin="anonymous"></script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  'use strict';
+  const canvas = document.getElementById('c');
+  const post = (m) => parent.postMessage(m, '*');
+  // what the room plays, for the code: 0..1, falling back after each hit
+  const room = { kick: 0, snare: 0, clap: 0, hat: 0, rim: 0, drums: 0, bass: 0, keys: 0, lead: 0, any: 0 };
+  window.room = room;
+  const DRUM = { 36: 'kick', 38: 'snare', 39: 'clap', 42: 'hat', 46: 'hat', 37: 'rim' };
+  const CH = { 1: 'bass', 2: 'keys', 3: 'lead' };
+  function hit(ch, note, v) {
+    const k = ch === 10 ? DRUM[note] : CH[ch];
+    if (k) room[k] = Math.max(room[k], v);
+    if (ch === 10) room.drums = Math.max(room.drums, v);
+    room.any = Math.max(room.any, v);
+  }
+  function fall() {
+    for (const k in room) room[k] *= 0.88;
+    requestAnimationFrame(fall);
+  }
+  requestAnimationFrame(fall);
+
+  let hydra;
+  function size() {
+    const r = Math.min(window.devicePixelRatio || 1, 1.5);
+    canvas.width = Math.max(64, Math.floor(innerWidth * r * 0.6));
+    canvas.height = Math.max(64, Math.floor(innerHeight * r * 0.6));
+    if (hydra) hydra.setResolution(canvas.width, canvas.height);
+  }
+  size();
+  addEventListener('resize', size);
+  try {
+    hydra = new Hydra({ canvas, detectAudio: false, makeGlobal: true, enableStreamCapture: false });
+  } catch (e) {
+    post({ type: 'error', message: 'WebGL: ' + (e && e.message || e) });
+  }
+
+  function run(code) {
+    if (!hydra) return;
+    try {
+      hush();
+      // the code sees Hydra's globals and `room`; a fresh function each time
+      new Function('room', String(code))(room);
+      post({ type: 'ok' });
+    } catch (e) {
+      post({ type: 'error', message: String(e && e.message || e).slice(0, 300) });
+    }
+  }
+
+  addEventListener('message', (e) => {
+    if (e.source !== parent) return;
+    const m = e.data;
+    if (!m || typeof m !== 'object') return;
+    if (m.type === 'code' && typeof m.code === 'string' && m.code.length <= 8000) run(m.code);
+    else if (m.type === 'hit' && Number.isInteger(m.ch) && Number.isInteger(m.note)) hit(m.ch, m.note, Math.min(1, Math.max(0, +m.v || 0.8)));
+    else if (m.type === 'clear' && hydra) { try { hush(); solid(0, 0, 0).out(o0); } catch {} }
+  });
+  post({ type: 'ready' });
+</script>
+</body>
+</html>

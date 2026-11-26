@@ -36,23 +36,40 @@ export function validateSketch(raw: unknown): Sketch | string {
 
 /**
  * The sketch a new one starts from: dark (deep violet on black), slow, a pulse on the beat through Hydra's `bpm`
- * (arrays step once a beat) when the track has a tempo.
+ * (arrays step once a beat) when the track has a tempo. Commented line by line, so it doubles as a Hydra primer.
  */
 export function starterSketch(o: { title?: string; bpm?: number } = {}): string {
   const title = (o.title ?? 'Hydra').replace(/[\r\n]+/g, ' ').slice(0, 120);
   const bpm = o.bpm && o.bpm > 0 && o.bpm < 1000 ? Math.round(o.bpm * 100) / 100 : undefined;
   return [
     `// ${title}`,
-    '// Ctrl+Enter: the line, Alt+Enter: the block, Ctrl+Shift+Enter: all; Ctrl+Space: complete or expand a shortcut',
-    ...(bpm ? [`bpm = ${bpm}`, ''] : ['']),
+    '// Run: Ctrl+Enter = this line, Alt+Enter = this block, Ctrl+Shift+Enter = everything.',
+    '// Ctrl+Space completes a function or expands a shortcut; Ctrl+Shift+H hides the code.',
+    '',
+    ...(bpm
+      ? ["// the track's tempo: arrays like [1, 1.08] step once per beat", `bpm = ${bpm}`, '']
+      : ['// arrays like [1, 1.08] step once per beat; set the tempo with: bpm = 120', '']),
+    '// a source: stripes (frequency, speed, colour offset)',
     'osc(8, 0.03, 0.8)',
+    '  // tint it deep violet (red, green, blue)',
     '  .color(0.35, 0.1, 0.6)',
+    '  // bend the stripes with slow noise (scale, speed), by 0.35',
     '  .modulate(noise(2.5, 0.08), 0.35)',
+    '  // mirror into 5 slices, like a kaleidoscope',
     '  .kaleid(5)',
+    bpm ? '  // breathe on the beat: zoom 1 then 1.08, every other beat' : '  // zoom in a little',
     `  .scale(${bpm ? '[1, 1.08].fast(0.5)' : '1.04'})`,
+    '  // a soft circle on top (sides, radius, edge blur), added in',
+    '  .add(shape(64, 0.25, 0.4).color(0.6, 0.2, 0.9), 0.3)',
+    '  // feedback: blend in the last frame, slightly rotated, for trails',
+    '  .blend(src(o0).rotate(0.01), 0.4)',
+    '  // keep it dark: lower the brightness, raise the contrast',
     '  .brightness(-0.3)',
     '  .contrast(1.5)',
+    '  // send it to the screen (output o0)',
     '  .out(o0)',
+    '',
+    '// with the Mic button on, the sound can drive a value, e.g. .kaleid(() => 3 + a.fft[0] * 6)',
     '',
   ].join('\n');
 }

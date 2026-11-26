@@ -1,6 +1,6 @@
 # reymenta
 
-The audience side of the Reymenta AV set (23 January 2027): a phone page and an audience server that turns the
+The audience side of the Reymenta AV set (**18 December 2026**, right after the Ableton meeting, as an audiovisual jam; the 23 January 2027 date is cancelled): a phone page and an audience server that turns the
 room's tilt/shake/touch/emoji into Cinder uniforms `iAud0..iAud31` (260..291). Overview, decisions and the plan:
 `../studies/reymenta-audience.md`. How to run: `README.md`.
 
@@ -252,3 +252,85 @@ Les tests internes ne comptent pas pour l'accès à la production. Pour ça, il 
   (`.stignore-shared`), and the Mac's was from 2026-11-21, before the Link module. On a machine where pnpm says the
   lockfile doesn't match: take it from git (`git fetch`, `git checkout origin/main -- pnpm-lock.yaml`: safe, the file
   isn't synced), then `pnpm install`.
+- 2026-11-26 (6.11.26.1): **avatars.** The user's round drawings on black paper (batchass, scans in
+  `C:\repos\import\avatars`) cleaned by `tools/avatars.py` (Python + Pillow + numpy): paper = the most common
+  colour among the darker pixels (the ink is lighter; black scanner margins left out), alpha from the colour
+  distance, grain blurred, specks removed, the drawing = the main blob + the big ones near the centre, square
+  crop, soft round edge, paper unmixed from the colours. Skipped: smaller copies, identical rescans (the numbered
+  files duplicating an img/fox scan), `img042` (too faint), `Scan10049` (photo of the whole page). Output
+  `assets/avatars/` (512 px webp, `atlas.png` 16×16 cells of 256 px for Cinder, `avatars.json`, README with the
+  GLSL lookup); `--publish` copies 256 px versions into `web/public/avatars` (shipped with the page and the app)
+  and writes `src/room/avatarCount.ts`. `src/room/avatars.ts`: `avatarFor(id, taken)` = from the phone id like
+  the name, skipping avatars already taken in the room; sent in `welcome` (`avatar`, optional), shown next to
+  the name in the phone header (glow in the phone's hue). Not sent to Cinder yet (iAud all used: comes with
+  the per-phone data texture).
+- 2026-11-26 (6.11.26.2): **Workshop and page touches.** The Workshop's home menu has the WebApp's icons
+  (`lucide-react` 0.456.0, the WebApp's version: ListMusic, Disc3, Guitar, Sparkles, Workflow, CircleHelp, Download;
+  Gauge for the tuner, Users for the artists: no WebApp equivalent). The catalogue line says "local network" or
+  "online" instead of the address (`./api/library/` = the audience server's copy, through the dev server's proxy: kept,
+  it's what the LAN page and the app on the show Wi-Fi read without internet). The page's "Android app" button became
+  "Test the Android app": a mailto to batchass06@gmail.com (subject + body asking for the tester's Google account),
+  since Play's search never shows an app in internal test. The Hydra starter sketch is commented line by line
+  (+ a soft circle, feedback trails, a microphone hint). Tests 86/87: `core.test.ts` fails because the WebApp's
+  `songGrid.ts` changed (run `pnpm sync-core`); not from these changes.
+  Jam with no sound: TSWebsocketServer wasn't running (`/status` `cinder: false`), so the Jam's MIDI was dropped;
+  started, a scripted phone's Bass pad reached "Default App Loopback (B)" (note on/off, A1, channel 1).
+- 2026-11-26 (6.11.26.3): **an "Accueil / Home" button on every page.** The Show and the Jam have it first in the top
+  bar (`goHome` in `App.tsx`: leaves the jam and the tab view, stops the sensors, closes the connection, clears the
+  room state, back to the start screen); the Workshop's "Show" button became the same "Accueil / Home". Clicked
+  through in headless Edge (start → Jam → Home → Workshop → Home); the server's `/status` drops the phone.
+- 2026-11-26 (6.11.26.4): **the FRAUG page and the online Jam.**
+  - `web/public/fraug/` = https://live.videodromm.com/fraug/ (static, French, no app code): the Ableton User Group
+    Côte d'Azur meeting, Friday 18 December 2026 18h, Cyberkiosc, rue de l'Hôtel Dieu (sous la Mairie), 06560
+    Valbonne, free entry; programme (Live 13, the .als, sets from code, the Reymenta jam), the Facebook group
+    (`groups/french.riviera.ableton`, public, the one Ableton knows; the 23-member group points to it), `fraug.ics`
+    (18h-21h: the end time is a guess), Open Graph tags + `og.png` 1200x630 (`python tools/fraug-og.py`, from
+    `web/public/logo.png`), schema.org Event. **The Facebook event's address goes in the page's `FB_EVENT` constant**
+    (its button stays hidden until then). `staticwebapp.config.json`: `/fraug` redirects to `/fraug/`, `/fraug/*`
+    out of the SPA fallback, `.ics` served as text/calendar. Under `pnpm dev` open `/fraug/index.html` (Vite serves
+    public folders by exact path only).
+  - **Online Jam** (`web/src/jam/online/`, `?jam=online[&room=<code>]`, start screen button; the FRAUG page links
+    room `fraug`): up to 5 players at home, no server in the middle. `api/jamjoin` (SWA function, same token code as
+    `/api/join`) gives a 1-hour token for hub `jamonline`, group `jam-<room>` (send + join only) and the server's
+    clock; refused while the show window is on (`SHOW_OPEN_FROM..UNTIL`, also `JAM_ONLINE=off`). The audience server
+    runs the same function for `pnpm dev` (`src/server/jamJoin.ts`, Vite proxies `/api/jamjoin`). Each page runs the
+    show's `Jam` class (`onlineRoom.ts`), puts every note on one shared sixteenth grid at least 150 ms ahead (the
+    internet's delay hides inside it), sends it to the group and plays the whole room on its own Web Audio synth
+    (`synth.ts`: synthesized drums, saw bass with drive, keys, square lead, echo + reverb sends; nothing to
+    download). The JamView screen is reused as is. Presence every 8 s (5-player cap kept by the pages: Web PubSub can't
+    count a group), the sender = Web PubSub's `fromUserId`, everything from a peer validated (`parsePeerMessage`).
+    Quota: the Free tier counts outbound bytes (2 KB units, 20,000 a day) once per receiver; compact wire format
+    (~145 bytes a note with Azure's envelope): a busy full room (5 players, 2 notes/s each) is ~10,000 units an hour,
+    so about two such hours a day. Tests `test/onlinejam.test.ts` (6). **Checked through the real Azure resource**
+    with two headless Edge pages: presence both ways, a Bass pad on page A started the same oscillators on page B,
+    both scheduled ahead of their clock. Not tried on phones or by ear yet.
+- 2026-11-26 (6.11.26.5): **the online Jam's protection** (the Free tiers can't cost money, they stop at their limits:
+  what's protected is the Web PubSub resource the show shares). `api/jamjoin`: Cloudflare Turnstile when
+  `TURNSTILE_SECRET` is set (the lobby runs the widget like the show page), at most 6 tokens per address per 10 min
+  (function memory, best effort), closed the **whole show day from 00:00 UTC** (the Free tier's daily message count
+  restarts then) to `SHOW_OPEN_UNTIL`, and no token lasts into that window. The audience server closes every
+  `jamonline` connection on `POST /admin/open` (`closeHub` in `src/cloud/wps.ts`). Pages: a send budget (12 a second,
+  24 at once; note offs never blocked) and a flood guard (a peer over 40 note messages in 2 s is muted on that page,
+  shown "muted"; its note offs still end its notes). Tests 9 in `onlinejam.test.ts`; two headless pages through Azure
+  again after the change.
+- 2026-11-26 (6.11.26.6): **roles in the online Jam: 🎹 Music, 🌀 Visuals, ⌨ Strudel** (tabs in the room; presence
+  carries the role, the player list shows it).
+  - Visuals: Hydra code (starter in `starters.ts`, commented, FR/EN) sent to the room; the latest sent wins and
+    becomes everyone's background, driven by the room's notes (`room.kick`, `room.snare`, `room.hat`, `room.bass`,
+    `room.keys`, `room.lead`, `room.any`, 0..1, posted to the frame when each note sounds). A "visuals shown/hidden"
+    toggle per page.
+  - Strudel: each player's part (one `$:` line per pattern), every page plays all parts together on the room's bar
+    line (`toNextBar`, cps = bpm/240); `setcps`/`setcpm` lines are overridden by the room's tempo. "Remove my part".
+    **strudel-flow** opens inside the Strudel tab (app.videodromm.com); its new **"Send to jam"** button (in its
+    code panel, only when embedded: `src/components/editor/pattern-panel.tsx` in `strudel-flow` and `videodromm-swa`)
+    posts the code to the page, accepted from that origin only (and localhost:5174), tempo lines stripped, then sent
+    with "Send to the room".
+  - **Others' code runs only in sandboxed frames**: `web/public/sandbox/hydra.html` and `strudel.html`, loaded in
+    `<iframe sandbox="allow-scripts">` (opaque origin: no access to the page, its storage or the room's connection;
+    checked: SecurityError from the parent), hydra-synth 1.4.0 and @strudel/web 1.3.0 from jsDelivr with SRI hashes
+    (identical to the node_modules copies). The Strudel frame shows a "🔊 Strudel" button when audio needs a tap in
+    it. Code messages: 4,000 characters at most, one every 2 s per player, counted by the flood guard; newcomers get
+    the playing code from its authors (`greet`).
+  - Tests 11 in `onlinejam.test.ts`. **Checked through Azure** with two headless Edge pages: A's Hydra code ran in B's
+    sandbox ("ok"), A's Strudel part played in B's ("playing"), roles shown. Not heard or seen on phones yet;
+    strudel-flow's "Send to jam" works only once videodromm-swa is deployed (not tried yet).

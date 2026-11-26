@@ -2,11 +2,13 @@
 // bass tabs (kept on the phone: storage.ts), the public catalogue (catalogue.ts), a fretboard, the artists.
 // Lazy-loaded by App.tsx, so the Show page doesn't carry it.
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+// the WebApp's icons (lucide-react, same version) for the same things: Setlist, Tracks, Fretboard, Hydra, Help...
+import { CircleHelp, Disc3, Download, Gauge, Guitar, ListMusic, Sparkles, Users, Workflow } from 'lucide-react';
 import { isNativeApp, savedServer } from '../connection';
 import type { Lang } from '../i18n';
 import { ArtistsScreen, AboutScreen } from './Artists';
 import artistsJson from './artists.json';
-import { librarySources, loadCatalogue, loadPublicPatch, loadPublicTab, toIndexTrack, toLibraryTrack, validateArtists, validateIndex, type Catalogue, type PublicTrack } from './catalogue';
+import { PUBLIC_LIBRARY, librarySources, loadCatalogue, loadPublicPatch, loadPublicTab, toIndexTrack, toLibraryTrack, validateArtists, validateIndex, type Catalogue, type PublicTrack } from './catalogue';
 import { FretboardScreen } from './Fretboard';
 import {
   addSetlist, addSketch, addToSetlist, addTrack, conflicts, deleteSketch, updateSketch, deleteSetlist, detectImport, exportLibrary, exportSetlist, merge,
@@ -35,7 +37,7 @@ type Screen =
 const LAN_HOST = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
 const bundled = validateArtists(artistsJson);
 
-export default function Workshop({ lang, langSwitch, onShow }: { lang: Lang; langSwitch: React.ReactNode; onShow: () => void }) {
+export default function Workshop({ lang, langSwitch, onHome }: { lang: Lang; langSwitch: React.ReactNode; onHome: () => void }) {
   const t = wtexts(lang);
   const [lib, setLib] = useState<Library | undefined>();
   const [saveFailed, setSaveFailed] = useState(false);
@@ -120,7 +122,7 @@ export default function Workshop({ lang, langSwitch, onShow }: { lang: Lang; lan
       {stack.length > 1 ? <button onClick={back} aria-label={t.back}>‹</button> : <span className="ws-brand">{t.title}</span>}
       <span className="ws-head-title">{stack.length > 1 ? screenTitle(screen, t, lib) : ''}</span>
       {screen.s !== 'tuner' && <button onClick={() => go({ s: 'tuner' })} aria-label={t.tuner}>𝄞</button>}
-      <button onClick={onShow}>{t.show}</button>
+      <button onClick={onHome}>{t.home}</button>
       {langSwitch}
     </header>
   );
@@ -132,17 +134,17 @@ export default function Workshop({ lang, langSwitch, onShow }: { lang: Lang; lan
     case 'home':
       body = (
         <nav className="ws-menu">
-          <button onClick={() => go({ s: 'setlists' })}>{t.setlists}</button>
-          <button onClick={() => go({ s: 'tracks' })}>{t.tracks}</button>
-          <button onClick={() => go({ s: 'fretboard' })}>{t.fretboard}</button>
-          <button onClick={() => go({ s: 'tuner' })}>{t.tuner}</button>
-          <button onClick={() => go({ s: 'sketches' })}>{t.sketches}</button>
-          <button onClick={() => go({ s: 'grooves' })}>{t.grooves}</button>
-          <button onClick={() => go({ s: 'artists' })}>{t.artists}</button>
-          <button onClick={() => go({ s: 'about' })}>{t.about}</button>
-          <button onClick={() => go({ s: 'data' })}>{t.data}</button>
+          <button onClick={() => go({ s: 'setlists' })}><ListMusic aria-hidden />{t.setlists}</button>
+          <button onClick={() => go({ s: 'tracks' })}><Disc3 aria-hidden />{t.tracks}</button>
+          <button onClick={() => go({ s: 'fretboard' })}><Guitar aria-hidden />{t.fretboard}</button>
+          <button onClick={() => go({ s: 'tuner' })}><Gauge aria-hidden />{t.tuner}</button>
+          <button onClick={() => go({ s: 'sketches' })}><Sparkles aria-hidden />{t.sketches}</button>
+          <button onClick={() => go({ s: 'grooves' })}><Workflow aria-hidden />{t.grooves}</button>
+          <button onClick={() => go({ s: 'artists' })}><Users aria-hidden />{t.artists}</button>
+          <button onClick={() => go({ s: 'about' })}><CircleHelp aria-hidden />{t.about}</button>
+          <button onClick={() => go({ s: 'data' })}><Download aria-hidden />{t.data}</button>
           <p className="ws-dim">{t.counts(lib.setlists.length, lib.tracks.length, Object.keys(lib.tabs).length)}</p>
-          <p className="ws-dim">{cat ? t.publicFrom(cat.base.replace(/^https?:\/\//, '')) : catDone ? t.offline : t.loading}</p>
+          <p className="ws-dim">{cat ? t.publicFrom(cat.base !== PUBLIC_LIBRARY) : catDone ? t.offline : t.loading}</p>
         </nav>
       );
       break;

@@ -110,7 +110,7 @@ test('sketches: validated, starter uses the bpm', () => {
   assert.equal(typeof validateHydra('<!doctype html><p>404'), 'object');
   assert.equal(typeof validateHydra(42), 'object');
   assert.match(starterSketch({ title: 'Song', bpm: 136 }), /^bpm = 136$/m);
-  assert.doesNotMatch(starterSketch({ title: 'Free' }), /bpm =/);
+  assert.doesNotMatch(starterSketch({ title: 'Free' }), /^bpm =/m);
 });
 
 test('library: Hydra per track and free sketches round trip, merge, delete', () => {

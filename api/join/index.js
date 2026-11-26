@@ -117,3 +117,4 @@ module.exports = async function (context, req) {
 
 module.exports.showState = showState;
 module.exports.codeOk = codeOk;
+module.exports.turnstile = turnstile;

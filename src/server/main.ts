@@ -27,6 +27,8 @@ import { startLink, type LinkPoller } from './link';
 import { TabFollow } from './tabFollow';
 import { phoneShader } from './phoneShader';
 import { defaultLibraryDir, handleLibrary } from './library';
+import { handleJamJoin } from './jamJoin';
+import { closeHub, parseConnectionString } from '../cloud/wps';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 5191);
@@ -295,6 +297,8 @@ const LIBRARY_DIR = defaultLibraryDir(here);
 const http = createServer((req, res) => {
   // the public library for the Workshop (read only, any origin): src/server/library.ts
   if (handleLibrary(LIBRARY_DIR, req, res)) return;
+  // the online Jam's address (2026-11-26): the SWA's function run here, for pnpm dev and the LAN page
+  if (handleJamJoin(req, res, setting('PUBSUB_CONNECTION_STRING'))) return;
   // admin (Show-Access.ps1): this PC only, with TSWebsocketServer's token when it has one
   const emojiCmd = /^\/admin\/emojis\/(on|off|auto)$/.exec(req.url ?? '');
   // the Jam (2026-11-20): on | off | reload | clip/<track>/<clip>/on|off | scale/<root>/<mode>
@@ -326,7 +330,13 @@ const http = createServer((req, res) => {
     }
     const done = (body: unknown) => { res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
     if (emojiCmd) { setEmojiMode(emojiCmd[1] as 'auto' | 'on' | 'off'); done({ emojis: emojisOn(), mode: emojiMode, track: cinderFolderName }); }
-    else if (req.url === '/admin/open') { showOpen = true; kicked.clear(); log('show OPEN'); done({ open: true }); }
+    else if (req.url === '/admin/open') {
+      showOpen = true; kicked.clear(); log('show OPEN');
+      // the online Jam's players out (2026-11-26): the show gets the Free tier's connections and messages
+      const ps = parseConnectionString(setting('PUBSUB_CONNECTION_STRING'));
+      void (ps ? closeHub(ps, 'jamonline') : Promise.resolve(false)).then((ok) => { if (ok) log('online jam: connections closed'); });
+      done({ open: true });
+    }
     else void closeShow().then((cloudResult) => done({ open: false, cloud: cloudResult }));
     return;
   }

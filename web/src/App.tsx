@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { EMOJIS, type JamBeatMsg, type JamStateMsg, type PhoneMessage, type ServerMessage, type TabMsg, type ShaderMsg } from '../../src/room/protocol';
+import { avatarFile } from '../../src/room/avatars';
 import { TabView, type ClockAt } from './TabView';
 import { Showcase } from './Showcase';
 import { connect, fromShowLink, gateOpensAt, isNativeApp, phoneId, savedServer, saveServer, saveShowCode, showCode, type Connection, type Status } from './connection';
@@ -14,14 +15,17 @@ const Tuner = lazy(() => import('./tuner/Tuner'));
 // the Jam (2026-11-20, studies/reymenta-jam.md): its own chunk
 const JamView = lazy(() => import('./jam/JamView'));
 const VisBackground = lazy(() => import('./jam/VisBackground'));
+const OnlineJam = lazy(() => import('./jam/online/OnlineJam'));
 type AppMode = 'show' | 'workshop';
 const MODE_KEY = 'reymenta:mode';
+/** where a request to join the Android app's Google Play test goes */
+const TEST_EMAIL = 'batchass06@gmail.com';
 function initialMode(): AppMode {
   if (fromShowLink || new URLSearchParams(location.search).has('room')) return 'show';
   try { return localStorage.getItem(MODE_KEY) === 'workshop' ? 'workshop' : 'show'; } catch { return 'show'; }
 }
 
-interface Me { slot: number; x: number; y: number; count: number; name: { fr: string; en: string }; hue: number }
+interface Me { slot: number; x: number; y: number; count: number; name: { fr: string; en: string }; hue: number; avatar?: number }
 
 export function App() {
   const [lang, setLang] = useState<Lang>(initialLang);
@@ -63,6 +67,12 @@ export function App() {
   // Show (the audience page) or Workshop, the last choice remembered
   const [mode, setModeState] = useState<AppMode>(initialMode);
   const setMode = (m: AppMode) => { setModeState(m); try { localStorage.setItem(MODE_KEY, m); } catch { /* blocked */ } };
+  // the online Jam (2026-11-26): from home, players' browsers play together (jam/online); ?jam=online opens it
+  const [online, setOnlineState] = useState(() => new URLSearchParams(location.search).get('jam') === 'online');
+  const setOnline = (on: boolean) => {
+    setOnlineState(on);
+    if (!on && location.search) history.replaceState(null, '', location.pathname); // the room link is done with
+  };
 
   // connected but no welcome after a few seconds: the show (the audience server) isn't running yet
   const [waiting, setWaiting] = useState(false);
@@ -84,18 +94,35 @@ export function App() {
     });
   }, []);
 
+  // back to the start screen (Show | Jam | Workshop) from the Show or the Jam: leaves the room, stops the sensors
+  const stopMotionRef = useRef<() => void>(() => {});
+  const goHome = () => {
+    if (jamModeRef.current) leaveJam();
+    if (tabOpenRef.current) { tabOpenRef.current = false; conn.current?.send({ t: 'tab', on: false }); }
+    stopMotionRef.current();
+    stopMotionRef.current = () => {};
+    conn.current?.close();
+    conn.current = undefined;
+    setTabOpen(false); setTunerOpen(false); setTab(undefined); setClock(undefined); setVisShader(undefined);
+    setJamState(undefined); setJamBeat(undefined); setMe(undefined); setFull(false); setStatus('closed');
+    setEmojis(demoMotion);
+    setJoined(false);
+    setMode('show');
+  };
+
   const join = async () => {
     setJoined(true);
     const ok = await requestMotionPermission(); // must run inside the tap
     setSensors(ok);
     const stopMotion = ok ? startMotion(motion.current) : () => {};
+    stopMotionRef.current = stopMotion;
     const id = phoneId();
     conn.current = connect(
       () => ({ t: 'hello', id, lang }),
       (msg: ServerMessage) => {
         if (msg.t === 'welcome') {
           setFull(false);
-          setMe((m) => ({ slot: msg.slot, x: msg.x, y: msg.y, count: m?.count ?? msg.slot + 1, name: msg.name, hue: msg.hue }));
+          setMe((m) => ({ slot: msg.slot, x: msg.x, y: msg.y, count: m?.count ?? msg.slot + 1, name: msg.name, hue: msg.hue, avatar: msg.avatar }));
           // after a reconnect the server has forgotten the open tab view
           if (tabOpenRef.current) conn.current?.send({ t: 'tab', on: true });
           if (jamModeRef.current) { conn.current?.send({ t: 'jam', on: true }); conn.current?.send({ t: 'vis', on: true }); }
@@ -150,11 +177,12 @@ export function App() {
     };
   };
 
-  // the Android app on Google Play: on the web page only (not inside the app, not on iPhones)
+  // the Android app: still in Google Play's internal test (Play's search never shows it), so the button asks to join it by
+  // email (the tester's Google account goes on the test list); on the web page only (not inside the app, not on iPhones)
   const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const playBadge = !isNativeApp && !isIos && !demoMotion && (
-    <a className="play-badge" href="https://play.google.com/store/apps/details?id=com.videodromm.reymenta" target="_blank" rel="noreferrer">
-      <span aria-hidden="true">▶</span> {t.googlePlay}
+    <a className="play-badge" href={`mailto:${TEST_EMAIL}?subject=${encodeURIComponent(t.testSubject)}&body=${encodeURIComponent(t.testBody)}`}>
+      <span aria-hidden="true">✉</span> {t.googlePlay}
     </a>
   );
 
@@ -165,10 +193,18 @@ export function App() {
     </div>
   );
 
+  if (!joined && online) {
+    return (
+      <Suspense fallback={<main className="join"><p className="tagline">…</p></main>}>
+        <OnlineJam lang={lang} langSwitch={langSwitch} onHome={() => { setOnline(false); setMode('show'); }} />
+      </Suspense>
+    );
+  }
+
   if (!joined && mode === 'workshop') {
     return (
       <Suspense fallback={<main className="join"><p className="tagline">…</p></main>}>
-        <Workshop lang={lang} langSwitch={langSwitch} onShow={() => setMode('show')} />
+        <Workshop lang={lang} langSwitch={langSwitch} onHome={() => setMode('show')} />
       </Suspense>
     );
   }
@@ -189,6 +225,7 @@ export function App() {
         )}
         <button className="big" onClick={join}>{t.join}</button>
         <button className="workshop-btn jam-btn" onClick={() => { jamModeRef.current = true; setJamMode(true); void join(); }}>{t.jam}</button>
+        <button className="workshop-btn" onClick={() => setOnline(true)}>{t.onlineJam}</button>
         <button className="workshop-btn" onClick={() => setMode('workshop')}>{t.workshop}</button>
         <p className="small">{t.privacy}</p>
         <p className="small">
@@ -205,7 +242,8 @@ export function App() {
     <main className="play" style={{ ['--hue' as string]: hue }}>
       {playBadge}{langSwitch}
       <header>
-        {me ? <><span className="youare">{t.youAre}</span> <b className="name">{me.name[lang]}</b><span className="place">{t.place(me.slot, me.count)}</span></> : <span>{waiting ? t.waiting : t.joining}</span>}
+        <button className="tab-toggle home-btn" onClick={goHome}>{t.home}</button>
+        {me ?<>{me.avatar !== undefined && me.avatar >= 0 && <img className="avatar" src={`${import.meta.env.BASE_URL}avatars/${avatarFile(me.avatar)}`} alt="" />}<span className="youare">{t.youAre}</span> <b className="name">{me.name[lang]}</b><span className="place">{t.place(me.slot, me.count)}</span></> : <span>{waiting ? t.waiting : t.joining}</span>}
         {status !== 'open' && me && <span className="warn">{t.reconnecting}</span>}
         {me && <button className={`tab-toggle${tabOpen ? ' on' : ''}`} onClick={toggleTab}>{t.tab}</button>}
         {me && <button className={`tab-toggle${tunerOpen ? ' on' : ''}`} onClick={() => setTunerOpen((o) => !o)}>{t.tuner}</button>}

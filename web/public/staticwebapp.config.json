@@ -1,6 +1,7 @@
 {
   "platform": { "apiRuntime": "node:20" },
-  "navigationFallback": { "rewrite": "/index.html", "exclude": ["/assets/*", "/*.png", "/*.webmanifest", "/api/*"] },
+  "routes": [{ "route": "/fraug", "redirect": "/fraug/", "statusCode": 301 }],
+  "navigationFallback": { "rewrite": "/index.html", "exclude": ["/assets/*", "/*.png", "/*.webmanifest", "/api/*", "/fraug/*"] },
   "globalHeaders": { "X-Content-Type-Options": "nosniff", "Referrer-Policy": "strict-origin-when-cross-origin" },
-  "mimeTypes": { ".webmanifest": "application/manifest+json" }
+  "mimeTypes": { ".webmanifest": "application/manifest+json", ".ics": "text/calendar; charset=utf-8" }
 }

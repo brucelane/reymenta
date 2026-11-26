@@ -39,6 +39,8 @@ button:active { background: #22222b; }
 .play header { flex-shrink: 0; padding-right: 96px; min-height: 44px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
 .youare { color: var(--dim); }
 .name { color: var(--me); font-size: 20px; }
+/* the player's drawing (avatars.ts), transparent PNG-like webp, glows in the player's hue */
+.avatar { width: 44px; height: 44px; align-self: center; margin-right: 8px; filter: drop-shadow(0 0 6px hsl(var(--hue) 80% 60% / 0.6)); }
 .place { color: var(--dim); font-size: 13px; width: 100%; }
 .warn { color: #e0a040; font-size: 13px; margin: 0; }
 

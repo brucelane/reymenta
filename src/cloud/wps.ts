@@ -58,6 +58,19 @@ export async function closeConnections(ps: PubSub, target: { group: string } | {
   }
 }
 
+/** REST: closes every connection of a whole hub (2026-11-26: the online Jam's "jamonline" when the show opens). */
+export async function closeHub(ps: PubSub, hub: string): Promise<boolean> {
+  const url = `${ps.endpoint}/api/hubs/${encodeURIComponent(hub)}/:closeConnections?api-version=2024-01-01`;
+  const now = Math.floor(Date.now() / 1000);
+  const token = signJwt({ aud: url, iat: now, exp: now + 300 }, ps.key);
+  try {
+    const res = await fetch(url, { method: 'POST', headers: { authorization: `Bearer ${token}` } });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** REST: sends a JSON message to one user (a phone). Resolves false on failure. */
 export async function sendToUser(ps: PubSub, userId: string, data: unknown): Promise<boolean> {
   const url = `${ps.endpoint}/api/hubs/${HUB}/users/${encodeURIComponent(userId)}/:send?api-version=2024-01-01`;
