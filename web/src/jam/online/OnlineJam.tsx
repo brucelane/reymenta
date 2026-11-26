@@ -44,7 +44,8 @@ const TEXTS = {
     home: 'Accueil', minutes: (m: number) => `encore ${m} min`,
     roles: { music: '🎹 Musique', visuals: '🌀 Visuels', strudel: '⌨ Strudel' } as Record<Role, string>,
     send: 'Envoyer à la salle', sent: 'Envoyé', wait: 'Attendez deux secondes', long: `Trop long (${MAX_CODE} caractères au plus)`,
-    removePart: 'Retirer ma partie', flow: 'Construire avec strudel-flow', flowHide: 'Fermer strudel-flow',
+    removePart: 'Retirer ma partie', flow: 'Ouvrir strudel-flow (les blocs)', flowHide: 'Fermer strudel-flow',
+    yourCode: 'Votre partie (le code envoyé à la salle) :', drumsHint: 'Ici, chaque pad joue un son. Pour construire un groove de batterie avec des blocs :',
     flowHint: 'Construisez un groove avec les blocs, puis « Send to jam » dans le panneau du code : il arrive ici, prêt à envoyer.',
     flowGot: 'Code reçu de strudel-flow : vérifiez-le, puis « Envoyer à la salle ».',
     visualsOn: 'Visuels affichés', visualsOff: 'Visuels masqués',
@@ -66,7 +67,8 @@ const TEXTS = {
     home: 'Home', minutes: (m: number) => `${m} min left`,
     roles: { music: '🎹 Music', visuals: '🌀 Visuals', strudel: '⌨ Strudel' } as Record<Role, string>,
     send: 'Send to the room', sent: 'Sent', wait: 'Wait two seconds', long: `Too long (${MAX_CODE} characters at most)`,
-    removePart: 'Remove my part', flow: 'Build with strudel-flow', flowHide: 'Close strudel-flow',
+    removePart: 'Remove my part', flow: 'Open strudel-flow (the blocks)', flowHide: 'Close strudel-flow',
+    yourCode: 'Your part (the code sent to the room):', drumsHint: 'Here each pad plays one sound. To build a drum groove with blocks:',
     flowHint: 'Build a groove with the blocks, then "Send to jam" in the code panel: it lands here, ready to send.',
     flowGot: 'Code received from strudel-flow: check it, then "Send to the room".',
     visualsOn: 'Visuals shown', visualsOff: 'Visuals hidden',
@@ -104,7 +106,8 @@ export default function OnlineJam({ lang, langSwitch, onHome }: { lang: Lang; la
   const [strudelErr, setStrudelErr] = useState('');
   const [needTap, setNeedTap] = useState(false);
   const [visualsOn, setVisualsOn] = useState(true);
-  const [flowOpen, setFlowOpen] = useState(false);
+  // strudel-flow (the blocks) first in the Strudel tab: what players look for there (the user, 2026-11-26)
+  const [flowOpen, setFlowOpen] = useState(true);
   const [, redraw] = useState(0);
   const session = useRef<Session | undefined>(undefined);
   const hydraFrame = useRef<HTMLIFrameElement>(null);
@@ -332,23 +335,29 @@ export default function OnlineJam({ lang, langSwitch, onHome }: { lang: Lang; la
             {hydraErr && <p className="warn">{t.errorIn} {hydraErr}</p>}
           </section>
         )}
+        {role === 'music' && state.mine >= 0 && state.tracks[state.mine]?.k === 'drums' && (
+          <p className="oj-dim">{t.drumsHint} <button className="tab-toggle" onClick={() => { pickRole('strudel'); setFlowOpen(true); }}>{t.roles.strudel}</button></p>
+        )}
         {role === 'strudel' && (
           <section className="oj-code">
             <p className="oj-dim">{t.strudelHint}</p>
-            <textarea value={strudelCode} onChange={(e) => setStrudelCode(e.target.value)} spellCheck={false} autoCapitalize="none" autoCorrect="off" rows={10} maxLength={MAX_CODE} />
-            <div className="oj-buttons oj-left">
-              <button className="big" onClick={() => share('s', strudelCode)}>{t.send}</button>
-              {s.room.strudel.has(s.room.me.id) && <button className="tab-toggle" onClick={() => share('s', '')}>{t.removePart}</button>}
-              <button className="tab-toggle" onClick={() => setFlowOpen((o) => !o)}>{flowOpen ? t.flowHide : t.flow}</button>
-              {note && <span className="oj-dim">{note}</span>}
-            </div>
-            {strudelErr && <p className="warn">{t.errorIn} {strudelErr}</p>}
             {flowOpen && (
               <>
                 <p className="oj-dim">{t.flowHint}</p>
                 <iframe ref={flowFrame} className="oj-flow" title="strudel-flow" src={DEFAULT_FLOW_URL} allow="autoplay; clipboard-write" />
               </>
             )}
+            <div className="oj-buttons oj-left">
+              <button className="tab-toggle" onClick={() => setFlowOpen((o) => !o)}>{flowOpen ? t.flowHide : t.flow}</button>
+            </div>
+            <p className="oj-dim">{t.yourCode}</p>
+            <textarea value={strudelCode} onChange={(e) => setStrudelCode(e.target.value)} spellCheck={false} autoCapitalize="none" autoCorrect="off" rows={flowOpen ? 6 : 10} maxLength={MAX_CODE} />
+            <div className="oj-buttons oj-left">
+              <button className="big" onClick={() => share('s', strudelCode)}>{t.send}</button>
+              {s.room.strudel.has(s.room.me.id) && <button className="tab-toggle" onClick={() => share('s', '')}>{t.removePart}</button>}
+              {note && <span className="oj-dim">{note}</span>}
+            </div>
+            {strudelErr && <p className="warn">{t.errorIn} {strudelErr}</p>}
           </section>
         )}
       </main>

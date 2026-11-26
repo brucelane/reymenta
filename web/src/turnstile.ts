@@ -7,11 +7,15 @@ interface TurnstileApi {
   render(el: HTMLElement, opts: Record<string, unknown>): string;
   execute(id: string): void;
   reset(id: string): void;
+  remove(id: string): void;
 }
 declare global { interface Window { turnstile?: TurnstileApi } }
 
 let siteKey: Promise<string> | undefined;
 let widget: string | undefined;
+/** the slot the widget was rendered in: a screen that unmounts (the online Jam's lobby, 2026-11-26) takes it away, and
+ *  the widget must then be rendered again in the new slot (reusing it gave no token: "robot check refused") */
+let widgetEl: HTMLElement | undefined;
 let waiting: ((token: string) => void) | undefined;
 
 function config(base: string): Promise<string> {
@@ -46,7 +50,9 @@ export async function turnstileToken(base: string): Promise<string> {
     const timer = window.setTimeout(() => { waiting = undefined; resolve(''); }, 60000);
     waiting = (token) => { window.clearTimeout(timer); waiting = undefined; resolve(token); };
     try {
-      if (widget === undefined) {
+      if (widget === undefined || widgetEl !== el || !el.isConnected) {
+        if (widget !== undefined) { try { api.remove(widget); } catch { /* its slot is gone already */ } }
+        widgetEl = el;
         widget = api.render(el, {
           sitekey: key,
           appearance: 'interaction-only',

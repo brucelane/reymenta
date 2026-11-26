@@ -340,3 +340,10 @@ Les tests internes ne comptent pas pour l'accès à la production. Pour ça, il 
   6.11.26.6 (versionCode 6112606)** built for the internal test (`android/app/build/outputs/bundle/release/`),
   uploaded by hand in the Play Console. The user's phone keeps a debug build (6.11.26.6, its data kept) for now: it
   must be uninstalled before installing from Play.
+- 2026-11-26 (6.11.26.7): **fixes from the first try on a phone.** (1) Rejoining refused with "Vérification
+  anti-robot refusée": `web/src/turnstile.ts` reused its Turnstile widget after the slot it lived in had unmounted
+  (the online Jam's lobby), so no token came; it now renders again when the slot changed (`widgetEl`), removing the
+  old one. (2) The Strudel tab opens strudel-flow first (the blocks), with "your part" below; the Drums pads point to
+  it. strudel-flow got a big **"Send to jam"** button on the canvas (bottom right, embedded only: `SendToJamPanel`):
+  the code panel's one sat deep in the Patches popover. Checked: strudel-flow in a 390 px frame, the button posts the
+  drum groove's code to the page.
