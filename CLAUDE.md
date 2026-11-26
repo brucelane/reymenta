@@ -347,3 +347,7 @@ Les tests internes ne comptent pas pour l'accès à la production. Pour ça, il 
   it. strudel-flow got a big **"Send to jam"** button on the canvas (bottom right, embedded only: `SendToJamPanel`):
   the code panel's one sat deep in the Patches popover. Checked: strudel-flow in a 390 px frame, the button posts the
   drum groove's code to the page.
+- 2026-11-26 (6.11.26.8): the Strudel frame calls `strudel.initAudio()` itself before playing: superdough's
+  AudioWorklets (distort, crush, shape: strudel-flow's Texture node) load there, and @strudel/web only ran it on a
+  first click in the frame; with autoplay allowed there was none ("[getTrigger] error: Failed to construct
+  'AudioWorkletNode'"). Checked in headless Edge (frame console: "AudioWorklets loaded", no error).

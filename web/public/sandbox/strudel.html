@@ -55,6 +55,17 @@
   function audioOk() {
     try { return S.getAudioContext().state === 'running'; } catch { return false; }
   }
+  // superdough's AudioWorklets (distort, crush, shape... the effects strudel-flow's Texture node writes) load in
+  // initAudio(), which @strudel/web only runs on the first click in this frame: with autoplay allowed there's no
+  // click, and those effects failed ("AudioWorklet does not have a valid AudioWorkletGlobalScope", 2026-11-26)
+  let audioInit;
+  function initAudio() {
+    audioInit ??= Promise.resolve(S.initAudio()).catch((e) => {
+      audioInit = undefined;
+      post({ type: 'error', message: 'audio: ' + String(e && e.message || e).slice(0, 200) });
+    });
+    return audioInit;
+  }
   function showTap(on) { tap.hidden = !on; state.hidden = on; if (on) post({ type: 'needtap' }); }
 
   async function play(m) {
@@ -62,6 +73,7 @@
     clearTimeout(timer);
     if (!audioOk()) { try { await S.getAudioContext().resume(); } catch {} }
     if (!audioOk()) { pending = m; showTap(true); return; }
+    await initAudio();
     // the room's tempo wins over any setcps/setcpm in the code: it's appended last
     const code = `${m.code}\nsetcps(${Number(m.cps)})`;
     timer = setTimeout(async () => {
@@ -78,6 +90,7 @@
     await init();
     try { await S.getAudioContext().resume(); } catch {}
     if (!audioOk()) return;
+    await initAudio();
     showTap(false);
     // the parent sends the code again, with a fresh time to the next bar line
     if (pending) { pending = undefined; post({ type: 'tapped' }); }
