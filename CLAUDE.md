@@ -334,3 +334,9 @@ Les tests internes ne comptent pas pour l'accès à la production. Pour ça, il 
   - Tests 11 in `onlinejam.test.ts`. **Checked through Azure** with two headless Edge pages: A's Hydra code ran in B's
     sandbox ("ok"), A's Strudel part played in B's ("playing"), roles shown. Not heard or seen on phones yet;
     strudel-flow's "Send to jam" works only once videodromm-swa is deployed (not tried yet).
+- 2026-11-26: committed and pushed (reymenta ce37754, strudel-flow b2e3443, videodromm-swa c6a8542, root c14c3fb); both
+  SWAs deployed (live.videodromm.com/fraug/ and /sandbox/ online, `/api/jamjoin` answers `captcha` without a Turnstile
+  token: the check is on in production; app.videodromm.com has the drum patch and "Send to jam"). **Release AAB
+  6.11.26.6 (versionCode 6112606)** built for the internal test (`android/app/build/outputs/bundle/release/`),
+  uploaded by hand in the Play Console. The user's phone keeps a debug build (6.11.26.6, its data kept) for now: it
+  must be uninstalled before installing from Play.
