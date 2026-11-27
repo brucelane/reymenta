@@ -1,7 +1,7 @@
 # Reymenta
 
-The audience plays along with the Reymenta AV set from their phones: tilt, shake, touch and emoji move the
-visuals that Cinder renders on the screen. Built for the French Riviera Ableton User Group Côte d'Azur, 23 January 2027.
+The audience plays along from their phones: tilt, shake, touch and emoji move the visuals that Cinder renders on
+the screen, and the Jam plays Ableton Live. First used for the French Riviera Ableton User Group, 18 December 2026.
 Site: `live.videodromm.com` (to come). French / English.
 
 Design and plans: [`studies/reymenta-audience.md`](../studies/reymenta-audience.md) in the parent `repos` folder.

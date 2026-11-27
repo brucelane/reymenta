@@ -1,6 +1,6 @@
 # reymenta
 
-The audience side of the Reymenta AV set (**18 December 2026**, right after the Ableton meeting, as an audiovisual jam; the 23 January 2027 date is cancelled): a phone page and an audience server that turns the
+The audience side of Reymenta (**18 December 2026**: a collaborative audiovisual jam right after the French Riviera Ableton User Group meeting; no Reymenta set performed that night, the 23 January 2027 date is cancelled; run sheet `../abletonmeeting/run-of-show.md`): a phone page and an audience server that turns the
 room's tilt/shake/touch/emoji into Cinder uniforms `iAud0..iAud31` (260..291). Overview, decisions and the plan:
 `../studies/reymenta-audience.md`. How to run: `README.md`.
 
@@ -280,8 +280,8 @@ Les tests internes ne comptent pas pour l'accès à la production. Pour ça, il 
   room state, back to the start screen); the Workshop's "Show" button became the same "Accueil / Home". Clicked
   through in headless Edge (start → Jam → Home → Workshop → Home); the server's `/status` drops the phone.
 - 2026-11-26 (6.11.26.4): **the FRAUG page and the online Jam.**
-  - `web/public/fraug/` = https://live.videodromm.com/fraug/ (static, French, no app code): the Ableton User Group
-    Côte d'Azur meeting, Friday 18 December 2026 18h, Cyberkiosc, rue de l'Hôtel Dieu (sous la Mairie), 06560
+  - `web/public/fraug/` = https://live.videodromm.com/fraug/ (static, French, no app code): the French Riviera
+    Ableton User Group meeting (not "Côte d'Azur"), Friday 18 December 2026 18h, Cyberkiosc, rue de l'Hôtel Dieu (sous la Mairie), 06560
     Valbonne, free entry; programme (Live 13, the .als, sets from code, the Reymenta jam), the Facebook group
     (`groups/french.riviera.ableton`, public, the one Ableton knows; the 23-member group points to it), `fraug.ics`
     (18h-21h: the end time is a guess), Open Graph tags + `og.png` 1200x630 (`python tools/fraug-og.py`, from
@@ -351,3 +351,9 @@ Les tests internes ne comptent pas pour l'accès à la production. Pour ça, il 
   AudioWorklets (distort, crush, shape: strudel-flow's Texture node) load there, and @strudel/web only ran it on a
   first click in the frame; with autoplay allowed there was none ("[getTrigger] error: Failed to construct
   'AudioWorkletNode'"). Checked in headless Edge (frame console: "AudioWorklets loaded", no error).
+- 2026-11-27 (6.11.27.1): FRAUG page: the group's name is **French Riviera Ableton User Group** (title, Open Graph,
+  schema.org, heading, `fraug.ics`); the jam is "collaboratif" (no Reymenta set that night). `og.png` is now the
+  Facebook cover's picture (`abletonmeeting/facebook/cover.html`, `node facebook/render-cover.mjs` writes both);
+  `tools/fraug-og.py` deleted. Not deployed: the SWA workflow publishes it on push.
+- 2026-11-27 (6.11.27.2): FRAUG page and `fraug.ics`: ends at **20h** (SLV, 18h-20h; schema.org `endDate`);
+  `og.png` re-rendered with the partners' logos.

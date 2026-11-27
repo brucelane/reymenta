@@ -24,8 +24,8 @@ BEGIN:VEVENT
 UID:fraug-2026-12-18@live.videodromm.com
 DTSTAMP:20261126T120000Z
 DTSTART;TZID=Europe/Paris:20261218T180000
-DTEND;TZID=Europe/Paris:20261218T210000
-SUMMARY:Ableton User Group Côte d'Azur : Live 13 + jam Reymenta
+DTEND;TZID=Europe/Paris:20261218T200000
+SUMMARY:French Riviera Ableton User Group : Live 13 + jam audiovisuel
 LOCATION:Cyberkiosc\, rue de l'Hôtel Dieu (sous la Mairie)\, 06560 Valbonne
 DESCRIPTION:Ableton Live 13 (bêta)\, le format .als\, des sets Ableton écrits par du code\, puis un jam audiovisuel où le public joue depuis son téléphone. Entrée libre. https://live.videodromm.com/fraug/
 URL:https://live.videodromm.com/fraug/
