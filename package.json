@@ -1,6 +1,6 @@
 {
   "name": "reymenta",
-  "version": "6.11.28.1",
+  "version": "6.11.28.4",
   "private": true,
   "description": "Reymenta: the audience plays along with the AV set from their phones (live.videodromm.com)",
   "license": "AGPL-3.0-or-later",
@@ -12,6 +12,7 @@
     "server": "tsx src/server/main.ts",
     "bots": "tsx scripts/fake-phones.ts",
     "show-qr": "node scripts/show-qr.mjs",
+    "join-qr": "node scripts/join-qr.mjs",
     "emoji-atlas": "node scripts/emoji-atlas.mjs",
     "build": "tsc --noEmit && vite build",
     "buildandroid": "tsc --noEmit && vite build && npx cap sync android && npx cap open android",

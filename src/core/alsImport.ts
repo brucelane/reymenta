@@ -32,6 +32,44 @@ async function gunzip(data: ArrayBuffer): Promise<string> {
   return await new Response(stream).text();
 }
 
+/** Live's time signature enum: value = 99 * log2(denominator) + numerator - 1 (200 = 3/4, 201 = 4/4); in beats */
+export const meterBeats = (v: number) => {
+  const n = (v % 99) + 1;
+  const d = 2 ** Math.floor(v / 99);
+  return (n * 4) / d;
+};
+
+/**
+ * The set's time signatures (2026-11-25, BRVME's carrousel in 3/4, with signature changes placed by hand to follow a
+ * live take): the main track's TimeSignature, its arrangement automation (EnumEvents) when it has any, else its fixed
+ * value. undefined when the whole set is plain 4/4 (the old grid, with its clip/locator anchors, stays then).
+ */
+function readMeters(main: Element | null): { beat: number; beats: number }[] | undefined {
+  if (!main) return undefined;
+  const sig = Array.from(main.getElementsByTagName("TimeSignature")).find((e) => child(e, "AutomationTarget") && child(e, "Manual"));
+  if (!sig) return undefined;
+  const target = child(sig, "AutomationTarget")?.getAttribute("Id");
+  const manual = num(sig, "Manual");
+  let events: { beat: number; beats: number }[] = [];
+  for (const env of Array.from(main.getElementsByTagName("AutomationEnvelope"))) {
+    if (val(env, "EnvelopeTarget", "PointeeId") !== target) continue;
+    events = Array.from(path(env, "Automation", "Events")?.children ?? [])
+      .filter((e) => e.tagName === "EnumEvent")
+      .map((e) => ({ beat: Math.max(0, parseFloat(e.getAttribute("Time") ?? "0") || 0), beats: meterBeats(parseInt(e.getAttribute("Value") ?? "", 10)) }))
+      .filter((e) => e.beats > 0)
+      .sort((a, b) => a.beat - b.beat);
+  }
+  if (!events.length) events = [{ beat: 0, beats: meterBeats(manual || 201) }];
+  // a change before the song (Live's first event sits at -63072000) counts from 0; later duplicates of a time dropped
+  const out: { beat: number; beats: number }[] = [];
+  for (const e of events) {
+    if (out.length && Math.abs(out[out.length - 1].beat - e.beat) < 1e-6) out[out.length - 1] = e;
+    else out.push(e);
+  }
+  if (out[0].beat > 0) out.unshift({ beat: 0, beats: 4 });
+  return out.length === 1 && out[0].beats === 4 ? undefined : out;
+}
+
 export async function parseAls(data: ArrayBuffer, source: string): Promise<AlsSong> {
   const xml = await gunzip(data);
   const doc = new DOMParser().parseFromString(xml, "application/xml");
@@ -42,6 +80,7 @@ export async function parseAls(data: ArrayBuffer, source: string): Promise<AlsSo
   const main = child(liveSet, "MainTrack") ?? child(liveSet, "MasterTrack");
   const tempoEl = main?.getElementsByTagName("Tempo")[0];
   const tempo = num(tempoEl, "Manual") || 120;
+  const meters = readMeters(main);
 
   const locators = Array.from(path(liveSet, "Locators", "Locators")?.children ?? [])
     .map((l) => ({ beat: num(l, "Time"), name: val(l, "Name") }))
@@ -108,5 +147,5 @@ export async function parseAls(data: ArrayBuffer, source: string): Promise<AlsSo
     tracks[key] = notes;
   }
   if (!Object.keys(tracks).length) throw new Error('No MIDI track named "tab..." in this set');
-  return { source, tempo, locators, tracks, clipStarts, audioFile, audioStart, audioClips };
+  return { source, tempo, locators, tracks, clipStarts, audioFile, audioStart, audioClips, ...(meters ? { meters } : {}) };
 }

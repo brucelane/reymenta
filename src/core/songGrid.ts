@@ -34,6 +34,9 @@ export interface AlsSong {
   /** fixed bar lengths in beats, repeated (odd meters: [3.5] for 7/8, [4, 3] for 4/4 + 3/4): replaces the 4/4
    *  grid and its anchors */
   barBeats?: number[];
+  /** the set's time signatures (2026-11-25, alsImport readMeters): from each beat, bars of that many beats (3 = 3/4),
+   *  until the next change; absent = 4/4 throughout */
+  meters?: { beat: number; beats: number }[];
 }
 
 /** Where the played file sits in the arrangement, in beats: its own clip, else the first clip
@@ -98,6 +101,7 @@ export function songEnd(song: AlsSong): number {
  */
 export function computeBars(song: AlsSong): Bar[] {
   if (song.barBeats?.length) return fixedBars(song, song.barBeats);
+  if (song.meters?.length) return meterBars(song, song.meters);
   const end = Math.ceil(songEnd(song));
   const hashSections = song.locators.some((l) => l.name.trim().startsWith("#"));
   const locatorBeats = song.locators.filter((l) => !hashSections || l.name.trim().startsWith("#")).map((l) => l.beat);
@@ -121,6 +125,27 @@ export function computeBars(song: AlsSong): Bar[] {
     bars.push({ index: bars.length, start: b, beats: 4, sections: [] });
     b += 4;
   }
+  for (const l of song.locators) {
+    const bar = barAt(bars, l.beat);
+    if (bar) bar.sections.push(l.name.replace(/^#/, ""));
+  }
+  return bars;
+}
+
+/**
+ * Bars from the set's time signatures: each change starts a new bar (in Live a signature change always does), and
+ * bars of its length follow until the next one; a bar cut short by a change keeps the beats it had. A change set off
+ * the grid to follow a live take (carrousel: 3/4 again at 370.625) thus shifts the grid from there on.
+ */
+function meterBars(song: AlsSong, meters: { beat: number; beats: number }[]): Bar[] {
+  const end = songEnd(song);
+  const bars: Bar[] = [];
+  meters.forEach((m, k) => {
+    const last = k + 1 === meters.length;
+    const until = last ? Math.max(end, m.beat + m.beats) : meters[k + 1].beat;
+    for (let b = m.beat; b < until - 0.001; b += m.beats)
+      bars.push({ index: bars.length, start: r4(b), beats: last ? m.beats : r4(Math.min(m.beats, until - b)), sections: [] });
+  });
   for (const l of song.locators) {
     const bar = barAt(bars, l.beat);
     if (bar) bar.sections.push(l.name.replace(/^#/, ""));
@@ -203,7 +228,9 @@ export const noteName = (key: number) => `${NOTE_NAMES[((key % 12) + 12) % 12]}$
 export function fretBass(
   notes: AlsNote[],
   tuning: TuningName,
-  overrides: Record<number, NoteOverride> = {}
+  overrides: Record<number, NoteOverride> = {},
+  /** stretch5: a hand position may cover 5 frets (3 different frets at most); off = 4 frets (the default) */
+  opts: { stretch5?: boolean } = {}
 ): TabNote[] {
   const open = TUNINGS[tuning];
   const low = open[0], high = open[3] + MAX_FRET;
@@ -260,33 +287,55 @@ export function fretBass(
     };
   });
 
-  // Fingers: index on hand position p, frets p..p+3 -> fingers 1..4. When a
-  // note is out of reach, move so the coming run of notes fits in 4 frets.
-  let p = 0;
-  for (let i = 0; i < tab.length; i++) {
-    const t = tab[i];
-    if (t.fret === 0) continue;
-    const forced = overrides[i]?.finger;
-    if (forced && forced >= 1 && forced <= 4) {
-      t.finger = forced;
-      t.fingerOverridden = true;
-      p = Math.max(1, t.fret - forced + 1);
-      continue;
-    }
-    if (!(p > 0 && t.fret >= p && t.fret <= p + 3)) {
-      let lo = t.fret, hi = t.fret;
-      for (let k = i + 1; k < tab.length; k++) {
-        const f = tab[k].fret;
-        if (f === 0) continue;
-        if (Math.max(hi, f) - Math.min(lo, f) > 3) break;
-        lo = Math.min(lo, f);
-        hi = Math.max(hi, f);
-      }
-      p = lo;
-    }
-    t.finger = t.fret - p + 1;
-  }
+  assignFingers(tab, overrides, opts.stretch5);
   return tab;
+}
+
+/**
+ * Fingers (2026-11-25, the user: "4 6 6 with middle ring pinky is unplayable, should be index for 4 and middle for
+ * 6; bassists play the leftmost note of a pattern with the index"). The fretted notes are cut into runs, each the
+ * longest stretch of consecutive notes within 4 frets (5 with stretch5, a track's option: at most 3 different frets,
+ * index, middle, pinky); one hand position each, open strings don't break a run. In a run
+ * the lowest fret takes the index, and each higher fret used takes the next finger for a step of 1 or 2 frets
+ * (4 then 6 = index, middle), two fingers further for a step of 3: 4 5 6 7 = 1 2 3 4, 4 6 7 = 1 2 3, 4 7 = 1 3.
+ * A finger set by hand (overrides) stays as it is.
+ */
+function assignFingers(tab: TabNote[], overrides: Record<number, NoteOverride>, stretch5 = false) {
+  const fretted = tab.map((t, i) => i).filter((i) => tab[i].fret > 0);
+  let a = 0;
+  while (a < fretted.length) {
+    let lo = tab[fretted[a]].fret, hi = lo, b = a + 1;
+    const used = new Set([lo]);
+    for (; b < fretted.length; b++) {
+      const f = tab[fretted[b]].fret;
+      const span = Math.max(hi, f) - Math.min(lo, f);
+      // 4 frets; 5 only on tracks that ask for it (2026-11-25, the user: "usually 4 frets, 5 is carrousel only"): a
+      // stretch over 5 frets holding at most 3 different frets (5 7 9 = index, middle, pinky)
+      if (span > 4 || (span === 4 && (!stretch5 || new Set([...used, f]).size > 3))) break;
+      used.add(f);
+      lo = Math.min(lo, f);
+      hi = Math.max(hi, f);
+    }
+    const frets = [...new Set(fretted.slice(a, b).map((i) => tab[i].fret))].sort((x, y) => x - y);
+    const fingerOf = new Map<number, number>();
+    if (hi - lo === 4) {
+      // stretched: index on the lowest, pinky on the highest, a fret between on the middle (2 frets up) or ring
+      frets.forEach((f) => fingerOf.set(f, f === lo ? 1 : f === hi ? 4 : f - lo <= 2 ? 2 : 3));
+    } else
+      frets.forEach((f, k) => {
+        if (k === 0) return fingerOf.set(f, 1);
+        const prev = fingerOf.get(frets[k - 1])!;
+        fingerOf.set(f, Math.min(4, prev + (f - frets[k - 1] >= 3 ? 2 : 1)));
+      });
+    for (const i of fretted.slice(a, b)) {
+      const forced = overrides[i]?.finger;
+      if (forced && forced >= 1 && forced <= 4) {
+        tab[i].finger = forced;
+        tab[i].fingerOverridden = true;
+      } else tab[i].finger = fingerOf.get(tab[i].fret)!;
+    }
+    a = b;
+  }
 }
 
 /**
@@ -461,6 +510,33 @@ export const BASS_PRESETS: Record<string, string> = {
 };
 const voice = (sound: string) => BASS_PRESETS[sound] ?? `.sound("${soundName(sound)}")`;
 const distort = (v: string) => (v.trim() ? `.distort("${v.trim().replace(/["\\]/g, "")}")` : "");
+
+/** A song read back from a hand-written patch (patch-tab.mjs: source "<x>.strudel.js") only holds the bass:
+ * regenerating from it would drop every other part (2026-11-25: "other instruments mute"). */
+export const isPatchSong = (song: { source?: string } | null | undefined) => !!song?.source && /\.strudel\.js$/i.test(song.source);
+
+/** Change the bass sound / distort of a hand-written patch in place, on the line tagged .color("bass"):
+ * from its first .s("…")/.sound("…") to .color("bass") becomes the new voice; .distort("…") on that line is
+ * replaced (or added after .color("bass")), removed when empty. undefined: no such line. */
+export function retuneBassInCode(code: string, change: { bassSound?: string; bassDistort?: string }): string | undefined {
+  const lines = code.split("\n");
+  const i = lines.findIndex((l) => l.includes('.color("bass")') && !l.trimStart().startsWith("//"));
+  if (i < 0) return undefined;
+  let line = lines[i];
+  if (change.bassSound !== undefined) {
+    const re = /\.(?:s|sound)\("[^"]*"\)[^\n]*?\.color\("bass"\)/;
+    if (!re.test(line)) return undefined;
+    const v = voice(change.bassSound);
+    line = line.replace(re, v.endsWith('.color("bass")') ? v : `${v}.color("bass")`);
+  }
+  if (change.bassDistort !== undefined) {
+    const d = distort(change.bassDistort);
+    if (/\.distort\("[^"]*"\)/.test(line)) line = line.replace(/\.distort\("[^"]*"\)/, d);
+    else if (d) line = line.replace('.color("bass")', `.color("bass")${d}`);
+  }
+  lines[i] = line;
+  return lines.join("\n");
+}
 
 const toEvs = (notes: AlsNote[], token: (n: AlsNote) => string): Ev[] =>
   notes.map((n) => ({ step: q(n.beat), len: Math.max(1, q(n.dur)), token: token(n) }));
