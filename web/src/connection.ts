@@ -19,16 +19,27 @@ export interface Connection {
 /** True inside the Capacitor app. */
 export const isNativeApp = !!(globalThis as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
 
+// crypto.randomUUID exists only on secure pages (https, localhost): the LAN page http://192.168.x.x:5192 crashed on
+// it and stayed on "Connexion…" (2026-11-28). getRandomValues works everywhere; same UUID v4 shape.
+function newId(): string {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const h = [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+
 export function phoneId(): string {
   try {
     let id = localStorage.getItem('reymenta:id');
     if (!id || !/^[A-Za-z0-9_-]{8,40}$/.test(id)) {
-      id = crypto.randomUUID();
+      id = newId();
       localStorage.setItem('reymenta:id', id);
     }
     return id;
   } catch {
-    return crypto.randomUUID(); // storage blocked: a new identity per visit
+    return newId(); // storage blocked: a new identity per visit
   }
 }
 

@@ -358,3 +358,7 @@ Les tests internes ne comptent pas pour l'accès à la production. Pour ça, il 
 - 2026-11-27 (6.11.27.2): FRAUG page and `fraug.ics`: ends at **20h** (SLV, 18h-20h; schema.org `endDate`);
   `og.png` re-rendered with the partners' logos.
 - 2026-11-28 (6.11.28.3): `pnpm join-qr` (`scripts/join-qr.mjs`): the LAN phone page (http://<this PC>:5192/, 192.168.* first, virtual adapters skipped) as a QR in the terminal, redrawn when the address changes; `--url` for any address. Start-Dev.ps1's new `qr` pane (top right). For rehearsals: Wi-Fi phones need port 5192 open in the firewall (the Node.js program rules were deleted on 2026-11-28); at the show the phones join through live.videodromm.com (`pnpm show-qr`, Cinder fbo 1).
+- 2026-11-28 (6.11.28.5): **the LAN page stuck on "Connexion…"**: `crypto.randomUUID` exists only on secure pages, and
+  http://192.168.x.x:5192 isn't one, so `phoneId()` threw (USB/localhost and live.videodromm.com were fine).
+  `newId()` in `web/src/connection.ts` falls back to `getRandomValues`. Checked in headless Edge through the Wi-Fi address:
+  welcome, the Jam's tracks, Link 110 bpm. On that http page the motion sensors stay off (also secure-only): fine for the Jam.
